@@ -1,6 +1,8 @@
 package org.example;
 
-public class Vector2 {
+import java.io.Serializable;
+
+public class Vector2 implements Serializable {
     private final float x;
     private final float y;
 

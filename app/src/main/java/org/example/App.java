@@ -3,16 +3,12 @@ package org.example;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.*;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import javax.management.relation.RelationNotFoundException;
 import javax.swing.*;
-
-import org.ejml.data.*;
-import org.ejml.simple.*;
 
 public class App extends JFrame{
 	private static final Vector2 PIXELS_PER_METER = new Vector2(60f,60f);
@@ -105,59 +101,140 @@ public class App extends JFrame{
 		topPanel.add(midPointSolverRadio);
 		topPanel.add(rungeKuttaSolverRadio);
 
-		JPanel content = new JPanel(){
-			@Override
-			public void paint(Graphics g){
-//				for (Vector2 pos : sbs.getNodes()){
-//					Point point = getPosition(pos, radius);
-//					g.fillOval(point.x, point.y, (int)(radius * 2 * PIXELS_PER_METER.getX()), (int)(radius * 2 * PIXELS_PER_METER.getY()));
-//				}
+		SystemRenderer content = new SystemRenderer(PIXELS_PER_METER);
 
-				if(showMeshBox.isSelected()){
-					for(Line line : sbs.getMesh()){
-						Point start = getPosition(line.start);
-						Point end = getPosition(line.end);
-						g.drawLine(start.x, start.y, end.x, end.y);
-					}
-				}
-				else{
-					Vector2[] border = sbs.getBorder();
-					int x[] = new int[border.length];
-					int y[] = new int[border.length];
-					for(int i = 0; i < border.length; i++){
-						Point p = getPosition(border[i]);
-						x[i] = p.x;
-						y[i] = p.y;
-					}
-					g.fillPolygon(x, y, border.length);
-				}
-			}
-		};
+//		JPanel content = new JPanel(){
+//			@Override
+//			public void paint(Graphics g){
+////				for (Vector2 pos : sbs.getNodes()){
+////					Point point = getPosition(pos, radius);
+////					g.fillOval(point.x, point.y, (int)(radius * 2 * PIXELS_PER_METER.getX()), (int)(radius * 2 * PIXELS_PER_METER.getY()));
+////				}
+//
+//				if(showMeshBox.isSelected()){
+//					for(Line line : sbs.getMesh()){
+//						Point start = getPosition(line.start);
+//						Point end = getPosition(line.end);
+//						g.drawLine(start.x, start.y, end.x, end.y);
+//					}
+//				}
+//				else{
+//					Vector2[] border = sbs.getBorder();
+//					int x[] = new int[border.length];
+//					int y[] = new int[border.length];
+//					for(int i = 0; i < border.length; i++){
+//						Point p = getPosition(border[i]);
+//						x[i] = p.x;
+//						y[i] = p.y;
+//					}
+//					g.fillPolygon(x, y, border.length);
+//				}
+//			}
+//		};
 		this.add(content, BorderLayout.CENTER);
 
 		this.setVisible(true);
 
-		long lastTime = System.nanoTime();
-		while(true){
-			long time = System.nanoTime();
-			long dt = time - lastTime;
-			lastTime = time;
-
-			system.step(dt / 1000_000_000f);
-//			system.step(0.000001f);
-			this.repaint();
-
-			Runnable task = tasks.poll();
-			if(task != null){
-				task.run();
+		float renderingStep = 0.001f;
+		float simulationStep = 0.00001f;
+		float totTime = 5;
+		File file = new File("simulation.psim");
+		Vector2[][] simulation = null;
+		if(file.exists()){
+            try {
+				System.out.println("Loading simulation");
+                simulation = loadSimulation(file);
+            } catch (Exception e) {
+				System.out.println("Crap " + e);
 			}
+        }else{
+			System.out.println("Simulating");
+			simulation = simulate(system, 5, simulationStep, renderingStep);
+            try {
+				System.out.println("Saving simulation");
+                saveSimulation(simulation, file);
+            } catch (IOException e) {
+				System.out.println("Crap " + e);
+            }
+        }
 
+		for(int i = 0; i < simulation.length; i++){
+			content.updateState(simulation[i]);
 			try {
-                Thread.sleep(0);
+                Thread.sleep((int)(renderingStep * 1000));
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-        }
+		}
+//		while(true){
+//			long time = System.nanoTime();
+//			long dt = time - lastTime;
+//			lastTime = time;
+//
+////			system.step(dt / 1000_000_000f);
+////			system.step(0.000001f);
+//			this.repaint();
+//
+//			Runnable task = tasks.poll();
+//			if(task != null){
+//				task.run();
+//			}
+//
+//			try {
+//                Thread.sleep(0);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
+	}
+
+	private void saveSimulation(Vector2[][] simulation, File file) throws IOException {
+		ObjectOutputStream objectOutputStream = null;
+		try{
+			FileOutputStream fileOutputStream = new FileOutputStream(file);
+			objectOutputStream = new ObjectOutputStream(fileOutputStream);
+			objectOutputStream.writeObject(simulation);
+			objectOutputStream.flush();
+		}finally{
+			if (objectOutputStream != null){
+				objectOutputStream.close();
+			}
+		}
+	}
+
+	private Vector2[][] loadSimulation(File file) throws IOException, ClassNotFoundException {
+		ObjectInputStream objectInputStream = null;
+		try{
+			FileInputStream fileInputStream = new FileInputStream(file);
+			objectInputStream = new ObjectInputStream(fileInputStream);
+			return (Vector2[][]) objectInputStream.readObject();
+		}finally{
+			if (objectInputStream != null){
+				objectInputStream.close();
+			}
+		}
+	}
+
+	private Vector2[][] simulate(ParticleSystem system, float time, float timeStep, float storeStep){
+		system.reset();
+		int steps = (int)(time / timeStep);
+		int storeSteps = (int)(time / storeStep);
+		int stepsPerStore = steps / storeSteps;
+		Vector2[][] result = new Vector2[storeSteps][];
+		for(int i = 0; i < steps; i++){
+			if(i % stepsPerStore == 0){
+				List<ParticleSystem.Particle> state = system.getParticles();
+				result[i / stepsPerStore] = new Vector2[state.size()];
+				int j = 0;
+				for (ParticleSystem.Particle particle : state){
+					result[i / stepsPerStore][j] = particle.getPosition();
+					j++;
+				}
+			}
+			system.step(timeStep);
+		}
+		system.reset();
+		return result;
 	}
 
 	private Point getPosition(Vector2 v, float radius){

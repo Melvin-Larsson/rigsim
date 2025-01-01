@@ -1,9 +1,5 @@
 package org.example;
 
-import org.checkerframework.checker.units.qual.A;
-
-import javax.lang.model.type.ArrayType;
-import javax.swing.text.ParagraphView;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,7 +8,6 @@ public class ParticleSystem {
     private List<Force> forces;
 
     private ODESolver<DParticle, DParticle> solver = new RungeKuttaSolver<>();
-
 
     private int width;
     private int height;
@@ -66,6 +61,10 @@ public class ParticleSystem {
 //            Vector2 netForce = particle.forces.stream().reduce(new Vector2(0,0), Vector2::add);
 //            particle.velocity = particle.velocity.add(netForce.div(particle.mass).mul(time));
         }
+    }
+
+    public List<Particle> getParticles(){
+        return this.particles;
     }
 
     public void setSolver(ODESolver solver){

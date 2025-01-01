@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SurfaceSphereSystem extends SoftBodySystem{
-    private static final float MASS = 4;
+    private static final float MASS = 2;
 
     public SurfaceSphereSystem(int width, int height) {
         super(width, height);
