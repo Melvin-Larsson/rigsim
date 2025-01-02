@@ -17,7 +17,9 @@ public class Editor extends JPanel {
     private List<Connection> connections;
 
     private Tool currentTool = null;
-    private JPanel content;
+    private JPanel toolPanel;
+    private JPanel optionalToolPanel;
+    private JToolBar currentToolbar = null;
 
     private List<EditorListener> listeners;
 
@@ -47,34 +49,9 @@ public class Editor extends JPanel {
 
         this.setLayout(new BorderLayout());
 
-        this.content = new JPanel(){
-            @Override
-            public void paint(Graphics g){
-                super.paint(g);
-                g.setColor(Color.BLACK);
-                for (EditorParticle particle : particles){
-                    drawParticle(particle, g);
-                }
-
-                for(Connection connection : connections){
-                    drawConnection(connection, g);
-                }
-
-                if(Editor.this.selectedParticles.size() > 0){
-                    System.out.println("Selected");
-                }
-                g.setColor(Color.BLUE);
-                for (EditorParticle particle : selectedParticles){
-                    drawParticle(particle, g);
-                }
-
-                if(currentTool != null){
-                    currentTool.paint(g);
-                }
-            }
-        };
-        this.add(this.content, BorderLayout.CENTER);
-
+        this.toolPanel = new JPanel();
+        this.toolPanel.setLayout(new GridBagLayout());
+        this.add(toolPanel, BorderLayout.NORTH);
         ToolData[] tools = {new ToolData(ADD_PARTICLE_ICON, new AddParticleTool(this)),
                             new ToolData(DELETE_PARTICLE_ICON, new DeleteParticleTool(this)),
                             new ToolData(SELECT_ICON, new SelectTool(this)),
@@ -82,7 +59,21 @@ public class Editor extends JPanel {
                             new ToolData(SPRING_ICON, new AddSpringTool(this)),
                             new ToolData(CIRCLE_ICON, new CircleTool(this)),
                             new ToolData(CONNECT_ALL_ICON, new ConnectAllTool(this))};
-        this.add(createToolbar(this.content, tools), BorderLayout.NORTH);
+        JToolBar toolBar = createToolbar(this, tools);
+        toolBar.setFloatable(false);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.weighty = 0.5;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridy = 0;
+        this.toolPanel.add(toolBar, gbc);
+
+        gbc.gridy = 1;
+        gbc.weighty = 0.5;
+        this.optionalToolPanel = new JPanel();
+        optionalToolPanel.setLayout(new GridLayout(1,1));
+        this.toolPanel.add(optionalToolPanel, gbc);
 
         JButton editorDoneButton = new JButton("Done");
         editorDoneButton.addActionListener(a -> {
@@ -90,20 +81,20 @@ public class Editor extends JPanel {
         });
         this.add(editorDoneButton, BorderLayout.SOUTH);
 
-        content.setFocusable(true);
-        content.addMouseListener(new MouseAdapter() {
+        this.setFocusable(true);
+        this.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 e.getComponent().requestFocus();
             }
         });
-        content.addKeyListener(new KeyAdapter() {
+        this.addKeyListener(new KeyAdapter() {
             @Override
             public void keyReleased(KeyEvent e) {
                 if(e.getKeyCode() == KeyEvent.VK_DELETE){
                     Editor.this.removeMultipleParticles(selectedParticles);
                     Editor.this.clearSelection();
-                    content.repaint();
+                    Editor.this.repaint();
                 }
             }
         });
@@ -118,13 +109,22 @@ public class Editor extends JPanel {
             if(this.currentTool != null){
                 content.removeMouseListener(this.currentTool);
                 content.removeMouseMotionListener(this.currentTool);
+                if(currentToolbar != null){
+                    this.optionalToolPanel.remove(currentToolbar);
+                }
             }
             this.currentTool = (Tool)source.getClientProperty(TOOL_KEY);
             if(this.currentTool != null){
                 this.currentTool.onSelect();
                 content.addMouseListener(this.currentTool);
                 content.addMouseMotionListener(this.currentTool);
+                currentToolbar = this.currentTool.getToolbar();
+                if(currentToolbar != null){
+                    this.currentToolbar.setFloatable(false);
+                    this.optionalToolPanel.add(this.currentToolbar);
+                }
             }
+            this.toolPanel.revalidate();
             this.repaint();
         };
 
@@ -177,7 +177,7 @@ public class Editor extends JPanel {
             SimulationParticle p1 = simulationParticles.get(mapping.get(connection.p1));
             SimulationParticle p2 = simulationParticles.get(mapping.get(connection.p2));
             Vector2 diff = p2.getPosition().sub(p1.getPosition());
-            SpringForce force = new SpringForce(p1, p2, diff.length(), 500, 20);
+            SpringForce force = new SpringForce(p1, p2, diff.length(), 500f, 4);
             system.addForce(force);
         }
     }
@@ -242,7 +242,7 @@ public class Editor extends JPanel {
     }
 
     JPanel getEditorPanel(){
-        return this.content;
+        return this;
     }
 
     private void invokeEditorsDone(){
@@ -270,6 +270,31 @@ public class Editor extends JPanel {
         private ToolData(File iconFile, Tool tool){
             this.icon = new ImageIcon(iconFile.getAbsolutePath());
             this.tool = tool;
+        }
+    }
+
+    @Override
+    public void paint(Graphics g){
+        super.paint(g);
+        g.setColor(Color.BLACK);
+        for (EditorParticle particle : particles){
+            drawParticle(particle, g);
+        }
+
+        for(Connection connection : connections){
+            drawConnection(connection, g);
+        }
+
+        if(Editor.this.selectedParticles.size() > 0){
+            System.out.println("Selected");
+        }
+        g.setColor(Color.BLUE);
+        for (EditorParticle particle : selectedParticles){
+            drawParticle(particle, g);
+        }
+
+        if(currentTool != null){
+            currentTool.paint(g);
         }
     }
 

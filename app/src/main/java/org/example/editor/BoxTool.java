@@ -12,13 +12,48 @@ import java.util.ArrayList;
 
 public class BoxTool extends Tool{
     private java.util.List<Vector2> ghostParticles;
+    private Vector2 ghostPosition = new Vector2(0,0);
+
     private int width = 4;
     private int height = 4;
     private boolean dialogOpen = false;
+    private JToolBar toolbar;
 
     public BoxTool(Editor editor) {
         super(editor);
         this.ghostParticles = new ArrayList<>();
+        this.toolbar = createToolbar();
+    }
+    @Override
+    public JToolBar getToolbar(){
+        return this.toolbar;
+    }
+
+    private JToolBar createToolbar(){
+        JToolBar toolBar = new JToolBar();
+        toolBar.setLayout(new FlowLayout(FlowLayout.LEADING, 5, 5));
+
+
+        JSpinner widthSpinner = new JSpinner(new SpinnerNumberModel(width, 1, 100, 1));
+        JSpinner heightSpinner = new JSpinner(new SpinnerNumberModel(height, 1, 100, 1));
+
+        ChangeListener spinnerUpdates = ce -> {
+            int width = (int)widthSpinner.getValue();
+            int height = (int)heightSpinner.getValue();
+            this.width = width;
+            this.height = height;
+            updateGhostParticles(this.ghostPosition, width, height, 20f);
+        };
+
+        widthSpinner.addChangeListener(spinnerUpdates);
+        heightSpinner.addChangeListener(spinnerUpdates);
+
+        toolBar.add(new JLabel("Width"));
+        toolBar.add(widthSpinner);
+        toolBar.add(new JLabel("Height"));
+        toolBar.add(heightSpinner);
+
+        return toolBar;
     }
 
     @Override
@@ -43,66 +78,13 @@ public class BoxTool extends Tool{
     public void mouseReleased(MouseEvent e){
         Vector2 topLeft = new Vector2(e.getX(), e.getY());
 
-        if(e.getButton() == MouseEvent.BUTTON3){
-            configureBox(topLeft);
-        }
-        else if(e.getButton() == MouseEvent.BUTTON1){
+        if(e.getButton() == MouseEvent.BUTTON1){
             addParticles(topLeft, this.width, this.height, 20f);
         }
     }
 
-    private void configureBox(Vector2 topLeft){
-        JPanel panel = new JPanel();
-        JDialog dialog = new JDialog();
-        dialogOpen = true;
-
-        JSpinner widthSpinner = new JSpinner(new SpinnerNumberModel(width, 1, 100, 1));
-        JSpinner heightSpinner = new JSpinner(new SpinnerNumberModel(height, 1, 100, 1));
-
-        updateGhostParticles(topLeft, width, height, 20f);
-        ChangeListener spinnerUpdates = ce -> {
-            int width = (int)widthSpinner.getValue();
-            int height = (int)heightSpinner.getValue();
-            updateGhostParticles(topLeft, width, height, 20f);
-        };
-
-        widthSpinner.addChangeListener(spinnerUpdates);
-        heightSpinner.addChangeListener(spinnerUpdates);
-
-        panel.add(new JLabel("Width"));
-        panel.add(widthSpinner);
-        panel.add(new JLabel("Height"));
-        panel.add(heightSpinner);
-
-        JButton submit = new JButton("Submit");
-        submit.addActionListener(ae -> {
-            this.width = (int)widthSpinner.getValue();
-            this.height = (int)heightSpinner.getValue();
-            ghostParticles.clear();
-            dialog.dispose();
-        });
-        panel.add(submit);
-
-        dialog.setTitle("Box tool");
-        dialog.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                BoxTool.this.dialogOpen = false;
-            }
-
-            @Override
-            public void windowClosed(WindowEvent e) {
-                BoxTool.this.dialogOpen = false;
-            }
-        });
-        dialog.setMinimumSize(new Dimension(300, 70));
-        dialog.add(panel);
-        dialog.pack();
-        dialog.setVisible(true);
-        dialog.setLocationRelativeTo(editor);
-    }
-
     private void updateGhostParticles(Vector2 topLeft, int width, int height, float spacing){
+        this.ghostPosition = topLeft;
         this.ghostParticles = getParticles(topLeft, width, height, spacing);
         super.editor.getEditorPanel().repaint();
     }

@@ -6,13 +6,13 @@ import javax.swing.*;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.MouseEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 
 public class CircleTool extends Tool{
-    private boolean dialogOpen;
+    private JToolBar toolbar;
+
     private java.util.List<Vector2> ghostParticles;
+    private Vector2 ghostCenter = new Vector2(0,0);
 
     private float radius;
     private int count;
@@ -20,10 +20,10 @@ public class CircleTool extends Tool{
     public CircleTool(Editor editor) {
         super(editor);
 
-        dialogOpen = false;
-        this.ghostParticles = new ArrayList<>();
         this.radius = 50;
         this.count = 10;
+        this.toolbar = createToolbar();
+        this.ghostParticles = new ArrayList<>();
     }
 
     @Override
@@ -36,78 +36,52 @@ public class CircleTool extends Tool{
 
     @Override
     public void mouseMoved(MouseEvent e){
-        if(dialogOpen){
-            return;
-        }
-
-        Vector2 topLeft = new Vector2(e.getX(), e.getY());
-        updateGhostParticles(topLeft, this.radius, this.count);
+        Vector2 center = new Vector2(e.getX(), e.getY());
+        updateGhostParticles(center, this.radius, this.count);
     }
 
     @Override
     public void mouseReleased(MouseEvent e){
         Vector2 center = new Vector2(e.getX(), e.getY());
 
-        if(e.getButton() == MouseEvent.BUTTON3){
-            configureCircle(center);
-        }
-        else if(e.getButton() == MouseEvent.BUTTON1){
+        if(e.getButton() == MouseEvent.BUTTON1){
             addParticles(center, this.radius, this.count);
         }
     }
 
-    private void configureCircle(Vector2 center){
-        JPanel panel = new JPanel();
-        JDialog dialog = new JDialog();
-        dialogOpen = true;
+    @Override
+    public JToolBar getToolbar(){
+        return this.toolbar;
+    }
+
+    private JToolBar createToolbar(){
+        JToolBar toolBar = new JToolBar();
+        toolBar.setLayout(new FlowLayout(FlowLayout.LEADING, 5, 5));
 
         JSpinner radiusSpinner = new JSpinner(new SpinnerNumberModel(radius, 1, 1000, 1));
         JSpinner countSpinner = new JSpinner(new SpinnerNumberModel(count, 2, 100, 1));
 
-        updateGhostParticles(center, radius, count);
         ChangeListener spinnerUpdates = ce -> {
-            float radius = (float)(double)radiusSpinner.getValue(); //Must cast Object (Double) to double before casting to float
-            int count = (int)countSpinner.getValue();
-            updateGhostParticles(center, radius, count);
+            this.radius = (float)(double)radiusSpinner.getValue(); //Must cast Object (Double) to double before casting to float
+            this.count = (int)countSpinner.getValue();
+            updateGhostParticles(this.ghostCenter, this.radius, this.count);
         };
-
         radiusSpinner.addChangeListener(spinnerUpdates);
         countSpinner.addChangeListener(spinnerUpdates);
 
-        panel.add(new JLabel("Radius"));
-        panel.add(radiusSpinner);
-        panel.add(new JLabel("Count"));
-        panel.add(countSpinner);
+        toolBar.add(new JLabel("Radius"));
+        toolBar.add(radiusSpinner);
+        toolBar.add(new JLabel("Count"));
+        toolBar.add(countSpinner);
 
-        JButton submit = new JButton("Submit");
-        submit.addActionListener(ae -> {
-            this.radius = (float)(double)radiusSpinner.getValue(); //Must cast Object (Double) to double before casting to float
-            this.count = (int)countSpinner.getValue();
-            ghostParticles.clear();
-            dialog.dispose();
-        });
-        panel.add(submit);
+        return toolBar;
+    }
 
-        dialog.setTitle("Box tool");
-        dialog.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                CircleTool.this.dialogOpen = false;
-            }
-
-            @Override
-            public void windowClosed(WindowEvent e) {
-                CircleTool.this.dialogOpen = false;
-            }
-        });
-        dialog.setMinimumSize(new Dimension(300, 70));
-        dialog.add(panel);
-        dialog.pack();
-        dialog.setVisible(true);
-        dialog.setLocationRelativeTo(editor);
+    private void configureCircle(Vector2 center){
     }
 
     private void updateGhostParticles(Vector2 center, float radius, int count){
+        this.ghostCenter = center;
         this.ghostParticles = getParticles(center, radius, count);
         super.editor.getEditorPanel().repaint();
     }

@@ -26,7 +26,7 @@ public class App extends JFrame{
 		SoftBodySystem sbs = new SurfaceSphereSystem((int)(WINDOW_SIZE.width / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.width / PIXELS_PER_METER.getY()));
 		system = sbs.getSystem();
 
-		system.addForce(new ViscousDragForce(0.02f));
+		system.addForce(new ViscousDragForce(1f));
 		system.addForce(new GravitationalForce());
 
 	/*	ParticleSystem system = new ParticleSystem((int)(500 / PIXELS_PER_METER.getX()), (int)(500 / PIXELS_PER_METER.getY()));
