@@ -43,19 +43,10 @@ public class AddSpringTool extends Tool{
         float margin = 0.1f;
 
         List<Float> distances = getSortedNeighbours().stream().map(this::distance).map(v -> (float)Math.ceil(v * 1/margin) * margin).distinct().toList();
-//        if(distances.isEmpty()){
-//            distances = List.of(0f);
-//        }
-//
-//        List<Float> filteredDistances = new ArrayList<>();
-//        for(Float distance : distances){
-//            Float last = filteredDistances.isEmpty() ? -margin * 2 : filteredDistances.getLast();
-//            if(Math.abs(last - distance) < margin){
-//                filteredDistances.removeLast();
-//            }
-//            filteredDistances.add(distance);
-//        }
-//
+        if(distances.isEmpty()){
+            distances = List.of(0f);
+        }
+
         this.connectionRadiusSpinner.setModel(new SpinnerListModel(distances));
     }
 
