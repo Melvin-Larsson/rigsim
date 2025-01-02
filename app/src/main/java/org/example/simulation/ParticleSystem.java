@@ -20,13 +20,12 @@ public class ParticleSystem {
 
     private float bounceKeep = DEFAULT_BOUNCE_KEEP;
 
+    private Vector2 size;
+    private float particleRadius;
 
-    private int width;
-    private int height;
-
-    public ParticleSystem(int width, int height){
-        this.width = width;
-        this.height = height;
+    public ParticleSystem(Vector2 size, float particleRadius){
+        this.setSize(size);
+        this.particleRadius = particleRadius;
 
         particles = new ArrayList<>();
         forces = new ArrayList<>();
@@ -78,8 +77,8 @@ public class ParticleSystem {
             particle.position = newDp.dPosition;
             particle.velocity = newDp.dVelocity;
 //            particle.position = particle.position.add(particle.velocity.mul(time));
-            if(particle.position.getY() > this.height){
-                particle.position = new Vector2(particle.position.getX(), this.height);
+            if(particle.position.getY() + this.particleRadius > this.size.getY()){
+                particle.position = new Vector2(particle.position.getX(), this.size.getY() - this.particleRadius);
                 particle.velocity = new Vector2(particle.velocity.getX(), -particle.velocity.getY() * bounceKeep);
             }
 //
@@ -104,6 +103,25 @@ public class ParticleSystem {
 
         this.bounceKeep = bounceKeep;
     }
+
+    public void setSize(Vector2 size){
+        if(size.getY() < 0){
+            throw new IllegalArgumentException("Height can not be less than zero. Provided value was " + size.getY());
+        }
+        if(size.getX() < 0){
+            throw new IllegalArgumentException("Width can not be less than zero. Provided value was " + size.getX());
+        }
+        this.size = size;
+    }
+
+    public void setParticleRadius(float particleRadius) {
+        if(particleRadius <= 0){
+            throw new IllegalArgumentException("Particle radius must be greater than zero. Provided value was " + particleRadius);
+        }
+
+        this.particleRadius = particleRadius;
+    }
+
 
     private class ParticleODE implements ODE<DParticle, DParticle> {
         @Override

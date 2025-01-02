@@ -43,6 +43,7 @@ public class App extends JFrame{
 	private ViscousDragForce viscousDrag;
 
 	private JPanel simulationPanel;
+	private JPanel simulationContent;
 	private Editor editor;
 	private JButton toggleModeButton;
 	private Optional<File> currFile;
@@ -71,7 +72,6 @@ public class App extends JFrame{
 		});
 		this.add(toggleModeButton, BorderLayout.SOUTH);
 		this.displayEditor();
-
 
 		this.setVisible(true);
 	}
@@ -103,7 +103,27 @@ public class App extends JFrame{
 				}
 			}
 		};
+		content.addComponentListener(new ComponentAdapter() {
+			@Override
+			public void componentResized(ComponentEvent e) {
+				super.componentResized(e);
+				updateSimulatorSize();
+			}
+			@Override
+			public void componentShown(ComponentEvent e){
+				super.componentShown(e);
+				updateSimulatorSize();
+			}
+
+			private void updateSimulatorSize(){
+				if(system != null){
+					Vector2 worldSize = pixelsToMeters(content.getSize());
+					system.setSize(worldSize);
+				}
+			}
+		});
 		simulation.add(content, BorderLayout.CENTER);
+		this.simulationContent = content; //FIXME: Hack
 
 		return simulation;
 	}
@@ -233,16 +253,19 @@ public class App extends JFrame{
 	}
 
 	private void displaySimulation(){
-		system = new ParticleSystem((int)(WINDOW_SIZE.height * 0.8f / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.height * 0.8f / PIXELS_PER_METER.getY()));
+		App.this.remove(this.editor);
+		App.this.add(simulationPanel, BorderLayout.CENTER);
+		App.this.revalidate();
+		App.this.repaint();
+
+		Vector2 worldSize = pixelsToMeters(this.simulationContent.getSize());
+		system = new ParticleSystem(worldSize, radius);
 		this.editor.initializeSystem(system);
 		this.gravity = new GravitationalForce(getGravity());
 		this.viscousDrag = new ViscousDragForce(getViscousDrag());
 		system.addForce(this.gravity);
 		system.addForce(this.viscousDrag);
 		system.setBounceKeep(getBounceKeep() / 100);
-
-		App.this.remove(this.editor);
-		App.this.add(simulationPanel, BorderLayout.CENTER);
 
 		simulationThread = new Thread(){
 			@Override
@@ -362,6 +385,13 @@ public class App extends JFrame{
 				return;
 			}
 		}
+	}
+
+	private Vector2 pixelsToMeters(Point p){
+		return new Vector2((float)p.getX() / PIXELS_PER_METER.getX(), (float)p.getY() / PIXELS_PER_METER.getY());
+	}
+	private Vector2 pixelsToMeters(Dimension d){
+		return new Vector2((float)d.getWidth() / PIXELS_PER_METER.getX(), (float)d.getHeight() / PIXELS_PER_METER.getY());
 	}
 
 	private float getGravity(){
