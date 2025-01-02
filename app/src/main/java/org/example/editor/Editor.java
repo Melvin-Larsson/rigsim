@@ -37,6 +37,7 @@ public class Editor extends JPanel {
     private static final File BOX_ICON = new File(RESOURCE_FOLDER, "box_icon.png");
     private static final File SPRING_ICON = new File(RESOURCE_FOLDER, "spring_icon.png");
     private static final File CIRCLE_ICON = new File(RESOURCE_FOLDER, "circle_icon.png");
+    private static final File MOVE_ICON = new File(RESOURCE_FOLDER, "move_icon.png");
 
     private static final String TOOL_KEY = "tool";
 
@@ -60,7 +61,8 @@ public class Editor extends JPanel {
                             new ToolData(SELECT_ICON, new SelectTool(this)),
                             new ToolData(BOX_ICON, new BoxTool(this)),
                             new ToolData(SPRING_ICON, new AddSpringTool(this)),
-                            new ToolData(CIRCLE_ICON, new CircleTool(this))};
+                            new ToolData(CIRCLE_ICON, new CircleTool(this)),
+                            new ToolData(MOVE_ICON, new MoveTool(this))};
         JToolBar toolBar = createToolbar(this, tools);
         toolBar.setFloatable(false);
 
