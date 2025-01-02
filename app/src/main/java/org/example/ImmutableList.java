@@ -22,6 +22,10 @@ public class ImmutableList<T> implements Iterable<T>{
         return list.isEmpty();
     }
 
+    public T getFirst(){
+        return list.getFirst();
+    }
+
     @Override
     public Iterator<T> iterator() {
         return list.iterator();

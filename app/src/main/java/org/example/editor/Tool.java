@@ -1,5 +1,7 @@
 package org.example.editor;
 
+import com.google.common.graph.Graph;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
@@ -17,7 +19,8 @@ public abstract class Tool implements MouseListener, MouseMotionListener {
 
     public JToolBar getToolBar(){ return null; };
 
-    public void paint(Graphics g){}
+    public void paintBack(Graphics g){}
+    public void paintFront(Graphics g){}
 
     @Override
     public void mouseClicked(MouseEvent e) {}

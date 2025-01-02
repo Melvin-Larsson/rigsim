@@ -18,7 +18,7 @@ public class SelectTool extends Tool{
     }
 
     @Override
-    public void paint(Graphics g){
+    public void paintFront(Graphics g){
         g.setColor(Color.BLACK);
         if(starPosition != null && mousePosition != null){
             Rectangle rectangle = getSelection();

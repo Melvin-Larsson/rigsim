@@ -13,7 +13,7 @@ import org.example.simulation.*;
 public class App extends JFrame{
 	private static final Vector2 PIXELS_PER_METER = new Vector2(60f,60f);
 	private float radius = 0.1f;
-	private static final Dimension WINDOW_SIZE = new Dimension(500, 600);
+	private static final Dimension WINDOW_SIZE = new Dimension(800, 600);
 
 	private ParticleSystem system;
 
@@ -24,7 +24,7 @@ public class App extends JFrame{
 
 	public App() throws InterruptedException {
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
-		this.setSize(WINDOW_SIZE);
+		this.setMinimumSize(WINDOW_SIZE);
 
 		JPanel simulationPanel = createSimulationPanel();
 
@@ -35,7 +35,7 @@ public class App extends JFrame{
 		JButton toggleModeButton = new JButton("Simulate");
 		toggleModeButton.addActionListener(e -> {
 			if(isEditing){
-				system = new ParticleSystem((int)(WINDOW_SIZE.width / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.width / PIXELS_PER_METER.getY()));
+				system = new ParticleSystem((int)(WINDOW_SIZE.height * 0.8f / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.height * 0.8f / PIXELS_PER_METER.getY()));
 				editor.initializeSystem(system);
 				system.addForce(new GravitationalForce());
 

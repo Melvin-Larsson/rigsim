@@ -8,7 +8,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
-import java.sql.Connection;
 import java.util.*;
 import java.util.List;
 
@@ -19,7 +18,7 @@ public class Editor extends JPanel {
 
     private Tool currentTool = null;
     private JPanel toolPanel;
-    private JPanel optionalToolPanel;
+    private GridBagConstraints optionalToolPanelConstraints;
     private JToolBar currentToolbar = null;
 
     private float particleMass = 1;
@@ -49,6 +48,7 @@ public class Editor extends JPanel {
         this.editorSprings = new ArrayList<>();
 
         this.setLayout(new BorderLayout());
+        this.add(new JLabel(), BorderLayout.CENTER);
 
         this.toolPanel = new JPanel();
         this.toolPanel.setLayout(new GridBagLayout());
@@ -64,17 +64,15 @@ public class Editor extends JPanel {
         toolBar.setFloatable(false);
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.weighty = 0.5;
+        gbc.weighty = 0;
         gbc.weightx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridy = 0;
         this.toolPanel.add(toolBar, gbc);
 
         gbc.gridy = 1;
-        gbc.weighty = 0.5;
-        this.optionalToolPanel = new JPanel();
-        optionalToolPanel.setLayout(new GridLayout(1,1));
-        this.toolPanel.add(optionalToolPanel, gbc);
+        gbc.weighty = 1;
+        this.optionalToolPanelConstraints = gbc;
 
         this.setFocusable(true);
         this.addMouseListener(new MouseAdapter() {
@@ -105,7 +103,7 @@ public class Editor extends JPanel {
                 content.removeMouseListener(this.currentTool);
                 content.removeMouseMotionListener(this.currentTool);
                 if(currentToolbar != null){
-                    this.optionalToolPanel.remove(currentToolbar);
+                    this.toolPanel.remove(currentToolbar);
                 }
             }
             this.currentTool = (Tool)source.getClientProperty(TOOL_KEY);
@@ -116,10 +114,11 @@ public class Editor extends JPanel {
                 currentToolbar = this.currentTool.getToolBar();
                 if(currentToolbar != null){
                     this.currentToolbar.setFloatable(false);
-                    this.optionalToolPanel.add(this.currentToolbar);
+                    this.toolPanel.add(this.currentToolbar, this.optionalToolPanelConstraints);
                 }
             }
-            this.toolPanel.revalidate();
+
+            this.revalidate();
             this.repaint();
         };
 
@@ -267,6 +266,11 @@ public class Editor extends JPanel {
     @Override
     public void paint(Graphics g){
         super.paint(g);
+
+        if(currentTool != null){
+            currentTool.paintBack(g);
+        }
+
         g.setColor(Color.BLACK);
         for (EditorParticle particle : particles){
             drawParticle(particle, g);
@@ -286,7 +290,7 @@ public class Editor extends JPanel {
         }
 
         if(currentTool != null){
-            currentTool.paint(g);
+            currentTool.paintFront(g);
         }
     }
 

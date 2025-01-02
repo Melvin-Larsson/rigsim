@@ -27,7 +27,7 @@ public class CircleTool extends Tool{
     }
 
     @Override
-    public void paint(Graphics g){
+    public void paintFront(Graphics g){
         for(Vector2 particle : ghostParticles){
             g.setColor(Color.GRAY);
             editor.drawParticle(particle, g);
