@@ -181,10 +181,7 @@ public class App extends JFrame{
 		});
 		this.add(editor, BorderLayout.CENTER);
 
-
-
 		this.setVisible(true);
-
 	}
 
 	private void simulate(){
@@ -195,7 +192,7 @@ public class App extends JFrame{
 			lastTime = time;
 
 			system.step(dt / 1000_000_000f);
-//			system.step(0.000001f);
+//			system.step(0.00002f);
 			this.repaint();
 
 			Runnable task = tasks.poll();

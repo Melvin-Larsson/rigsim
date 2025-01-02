@@ -25,7 +25,7 @@ public class BoxTool extends Tool{
         this.toolbar = createToolbar();
     }
     @Override
-    public JToolBar getToolbar(){
+    public JToolBar getToolBar(){
         return this.toolbar;
     }
 

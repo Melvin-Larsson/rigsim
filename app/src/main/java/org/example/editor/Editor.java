@@ -8,13 +8,14 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
+import java.sql.Connection;
 import java.util.*;
 import java.util.List;
 
 public class Editor extends JPanel {
     private List<EditorParticle> particles;
     private List<EditorParticle> selectedParticles;
-    private List<Connection> connections;
+    private List<EditorSpring> editorSprings;
 
     private Tool currentTool = null;
     private JPanel toolPanel;
@@ -36,15 +37,17 @@ public class Editor extends JPanel {
     private static final File BOX_ICON = new File(RESOURCE_FOLDER, "box_icon.png");
     private static final File SPRING_ICON = new File(RESOURCE_FOLDER, "spring_icon.png");
     private static final File CIRCLE_ICON = new File(RESOURCE_FOLDER, "circle_icon.png");
-    private static final File CONNECT_ALL_ICON = new File(RESOURCE_FOLDER, "connect_all_icon.png");
 
     private static final String TOOL_KEY = "tool";
+
+    public static final float MAX_SPRING_CONSTANT = 10000;
+    public static final float MAX_DAMPING_CONSTANT = 10000;
 
     public Editor(Vector2 pixelsPerMeter){
         this.pixelsPerMeter = pixelsPerMeter;
         this.particles = new ArrayList<>();
         this.selectedParticles = new ArrayList<>();
-        this.connections = new ArrayList<>();
+        this.editorSprings = new ArrayList<>();
         this.listeners = new ArrayList<>();
 
         this.setLayout(new BorderLayout());
@@ -57,8 +60,7 @@ public class Editor extends JPanel {
                             new ToolData(SELECT_ICON, new SelectTool(this)),
                             new ToolData(BOX_ICON, new BoxTool(this)),
                             new ToolData(SPRING_ICON, new AddSpringTool(this)),
-                            new ToolData(CIRCLE_ICON, new CircleTool(this)),
-                            new ToolData(CONNECT_ALL_ICON, new ConnectAllTool(this))};
+                            new ToolData(CIRCLE_ICON, new CircleTool(this))};
         JToolBar toolBar = createToolbar(this, tools);
         toolBar.setFloatable(false);
 
@@ -118,7 +120,7 @@ public class Editor extends JPanel {
                 this.currentTool.onSelect();
                 content.addMouseListener(this.currentTool);
                 content.addMouseMotionListener(this.currentTool);
-                currentToolbar = this.currentTool.getToolbar();
+                currentToolbar = this.currentTool.getToolBar();
                 if(currentToolbar != null){
                     this.currentToolbar.setFloatable(false);
                     this.optionalToolPanel.add(this.currentToolbar);
@@ -149,9 +151,9 @@ public class Editor extends JPanel {
         g.fillOval(p.x - radius, p.y - radius, radius * 2 + 1, radius * 2 + 1);
     }
 
-    void drawConnection(Connection connection, Graphics g){
-        Vector2 start = connection.p1.getPosition();
-        Vector2 end = connection.p2.getPosition();
+    void drawConnection(EditorSpring editorSpring, Graphics g){
+        Vector2 start = editorSpring.p1.getPosition();
+        Vector2 end = editorSpring.p2.getPosition();
         g.drawLine((int)start.getX(), (int)start.getY(), (int)end.getX(), (int)end.getY());
     }
 
@@ -173,11 +175,12 @@ public class Editor extends JPanel {
         List<SimulationParticle> simulationParticles = ParticleFactory.createSimulationParticles(particles);
         system.addAllParticles(simulationParticles);
 
-        for (Connection connection : connections){
-            SimulationParticle p1 = simulationParticles.get(mapping.get(connection.p1));
-            SimulationParticle p2 = simulationParticles.get(mapping.get(connection.p2));
+        for (EditorSpring editorSpring : editorSprings){
+            SimulationParticle p1 = simulationParticles.get(mapping.get(editorSpring.p1));
+            SimulationParticle p2 = simulationParticles.get(mapping.get(editorSpring.p2));
             Vector2 diff = p2.getPosition().sub(p1.getPosition());
-            SpringForce force = new SpringForce(p1, p2, diff.length(), 500f, 4);
+            System.out.println("Spring " + editorSpring.springConstant);
+            SpringForce force = new SpringForce(p1, p2, diff.length(), editorSpring.springConstant, editorSpring.dampingConstant);
             system.addForce(force);
         }
     }
@@ -204,13 +207,13 @@ public class Editor extends JPanel {
     }
     void removeParticle(EditorParticle particle){
         this.particles.remove(particle);
-        List<Connection> removeConnections = new LinkedList<>();
-        for(Connection connection : connections){
-            if(connection.p1 == particle || connection.p2 == particle){
-                removeConnections.add(connection);
+        List<EditorSpring> removeEditorSprings = new LinkedList<>();
+        for(EditorSpring editorSpring : editorSprings){
+            if(editorSpring.p1 == particle || editorSpring.p2 == particle){
+                removeEditorSprings.add(editorSpring);
             }
         }
-        connections.removeAll(removeConnections);
+        editorSprings.removeAll(removeEditorSprings);
     }
     void removeMultipleParticles(Collection<EditorParticle> particles){
         for(EditorParticle particle : particles){
@@ -237,8 +240,21 @@ public class Editor extends JPanel {
         this.selectedParticles.clear();
     }
 
-    void addConnection(Connection connection){
-        this.connections.add(connection);
+    void addConnection(EditorSpring editorSpring){
+        EditorSpring existingSpring = null;
+        for (EditorSpring spring : this.editorSprings){
+            if(spring.p1 == editorSpring.p1 && spring.p2 == editorSpring.p2 ||
+               spring.p2 == editorSpring.p1 && spring.p1 == editorSpring.p2){
+                existingSpring = spring;
+                break;
+            }
+        }
+
+        if(existingSpring != null){
+            this.editorSprings.remove(existingSpring);
+        }
+
+        this.editorSprings.add(editorSpring);
     }
 
     JPanel getEditorPanel(){
@@ -281,8 +297,9 @@ public class Editor extends JPanel {
             drawParticle(particle, g);
         }
 
-        for(Connection connection : connections){
-            drawConnection(connection, g);
+        for(EditorSpring editorSpring : editorSprings){
+            g.setColor(getSpringColor(editorSpring));
+            drawConnection(editorSpring, g);
         }
 
         if(Editor.this.selectedParticles.size() > 0){
@@ -298,5 +315,13 @@ public class Editor extends JPanel {
         }
     }
 
+    private Color getSpringColor(EditorSpring spring){
+        float springConstant = Math.min(spring.springConstant, MAX_SPRING_CONSTANT);
+        int rg = (int)((255.0 / Math.log10(MAX_SPRING_CONSTANT)) * Math.log10(springConstant));
 
+        float dampingConstant = Math.min(spring.dampingConstant, MAX_DAMPING_CONSTANT);
+        int b = (int)(255 - (255.0 / Math.log10(MAX_DAMPING_CONSTANT)) * Math.log10(dampingConstant));
+
+        return new Color(rg, rg, b);
+    }
 }

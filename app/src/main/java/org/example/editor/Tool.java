@@ -15,7 +15,7 @@ public abstract class Tool implements MouseListener, MouseMotionListener {
 
     public void onSelect(){}
 
-    public JToolBar getToolbar(){ return null; };
+    public JToolBar getToolBar(){ return null; };
 
     public void paint(Graphics g){}
 

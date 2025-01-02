@@ -50,7 +50,7 @@ public class CircleTool extends Tool{
     }
 
     @Override
-    public JToolBar getToolbar(){
+    public JToolBar getToolBar(){
         return this.toolbar;
     }
 

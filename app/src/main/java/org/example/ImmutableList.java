@@ -18,6 +18,10 @@ public class ImmutableList<T> implements Iterable<T>{
         return list.size();
     }
 
+    public boolean isEmpty(){
+        return list.isEmpty();
+    }
+
     @Override
     public Iterator<T> iterator() {
         return list.iterator();
