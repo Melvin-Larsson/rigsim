@@ -1,6 +1,8 @@
 package org.example.editor;
 
-class EditorSpring {
+import java.io.Serializable;
+
+class EditorSpring implements Serializable {
     final EditorParticle p1;
     final EditorParticle p2;
     final float springConstant;

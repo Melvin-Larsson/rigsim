@@ -2,7 +2,9 @@ package org.example.editor;
 
 import org.example.Vector2;
 
-public class EditorParticle {
+import java.io.Serializable;
+
+public class EditorParticle implements Serializable {
     private Vector2 position;
 
     public EditorParticle(Vector2 position){

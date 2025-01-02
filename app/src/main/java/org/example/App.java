@@ -1,11 +1,15 @@
 package org.example;
 
 import java.awt.*;
-import java.awt.event.ActionListener;
+import java.awt.event.*;
+import java.io.*;
+import java.util.Observable;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.swing.*;
+import javax.swing.text.html.Option;
 
 import org.example.editor.Editor;
 import org.example.simulation.*;
@@ -18,14 +22,18 @@ public class App extends JFrame{
 	private static final float DEFAULT_GRAVITY = 9.82f;
 	private static final float MIN_GRAVITY = -100f;
 	private static final float MAX_GRAVITY = 100f;
+	private static final float GRAVITY_STEP = 1f;
 
 	private static final float DEFAULT_VISCOUS_DRAG = 0.01f;
 	private static final float MIN_VISCOUS_DRAG = -100f;
 	private static final float MAX_VISCOUS_DRAG = 100f;
+	private static final float VISCOUS_DRAG_STEP = 0.01f;
+
 
 	private static final float DEFAULT_BOUNCE_KEEP_PERCENTAGE = ParticleSystem.DEFAULT_BOUNCE_KEEP * 100;
 	private static final float MIN_BOUNCE_KEEP_PERCENTAGE = 0;
 	private static final float MAX_BOUNCE_KEEP_PERCENTAGE = 100;
+	private static final float BOUNCE_KEEP_PERCENTAGE_STEP = 1;
 
 	private JSpinner gravitySpinner;
 	private JSpinner bounceKeepSpinner;
@@ -34,6 +42,10 @@ public class App extends JFrame{
 	private GravitationalForce gravity;
 	private ViscousDragForce viscousDrag;
 
+	private JPanel simulationPanel;
+	private Editor editor;
+	private JButton toggleModeButton;
+	private Optional<File> currFile;
 	private ParticleSystem system;
 
 	private Thread simulationThread;
@@ -45,45 +57,20 @@ public class App extends JFrame{
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
 		this.setMinimumSize(WINDOW_SIZE);
 
-		JPanel simulationPanel = createSimulationPanel();
+		this.setJMenuBar(createMenuBar());
 
-		Editor editor = new Editor(PIXELS_PER_METER);
-		this.add(editor, BorderLayout.CENTER);
-		isEditing = true;
+		this.simulationPanel = createSimulationPanel();
 
-		JButton toggleModeButton = new JButton("Simulate");
+		this.editor = new Editor(PIXELS_PER_METER);
+		this.currFile = Optional.empty();
+		this.add(this.editor, BorderLayout.CENTER);
+
+		this.toggleModeButton = new JButton("Simulate");
 		toggleModeButton.addActionListener(e -> {
-			if(isEditing){
-				system = new ParticleSystem((int)(WINDOW_SIZE.height * 0.8f / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.height * 0.8f / PIXELS_PER_METER.getY()));
-				editor.initializeSystem(system);
-				this.gravity = new GravitationalForce(getGravity());
-				this.viscousDrag = new ViscousDragForce(getViscousDrag());
-				system.addForce(this.gravity);
-				system.addForce(this.viscousDrag);
-				system.setBounceKeep(getBounceKeep() / 100);
-
-				App.this.remove(editor);
-				App.this.add(simulationPanel, BorderLayout.CENTER);
-				toggleModeButton.setText("Edit");
-
-				simulationThread = new Thread(){
-					@Override
-					public void run() {
-						simulate();
-					}
-				};
-				simulationThread.start();
-			}else{
-				simulationThread.interrupt();
-				App.this.remove(simulationPanel);
-				App.this.add(editor, BorderLayout.CENTER);
-				toggleModeButton.setText("Simulate");
-			}
-
-			isEditing = !isEditing;
-			App.this.revalidate();
+			toggleDisplay();
 		});
 		this.add(toggleModeButton, BorderLayout.SOUTH);
+		this.displayEditor();
 
 
 		this.setVisible(true);
@@ -170,27 +157,187 @@ public class App extends JFrame{
 		toolBar.addSeparator();
 
 		JLabel gravityLabel = new JLabel("Gravity");
-		this.gravitySpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_GRAVITY, MIN_GRAVITY, MAX_GRAVITY, 1));
+		this.gravitySpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_GRAVITY, MIN_GRAVITY, MAX_GRAVITY, GRAVITY_STEP));
 		this.gravitySpinner.addChangeListener(e -> this.gravity.setAcceleration(getGravity()));
 		toolBar.add(gravityLabel);
 		toolBar.add(this.gravitySpinner);
 		toolBar.addSeparator();
 
 		JLabel viscousDragLabel = new JLabel("Viscous drag");
-		this.viscousDragSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_VISCOUS_DRAG, MIN_VISCOUS_DRAG, MAX_VISCOUS_DRAG, 1));
+		this.viscousDragSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_VISCOUS_DRAG, MIN_VISCOUS_DRAG, MAX_VISCOUS_DRAG, VISCOUS_DRAG_STEP));
 		this.viscousDragSpinner.addChangeListener(e -> this.viscousDrag.setDrag(getViscousDrag()));
 		toolBar.add(viscousDragLabel);
 		toolBar.add(this.viscousDragSpinner);
 
 		JLabel bounceLabel = new JLabel("Bounce");
-		this.bounceKeepSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_BOUNCE_KEEP_PERCENTAGE, MIN_BOUNCE_KEEP_PERCENTAGE, MAX_BOUNCE_KEEP_PERCENTAGE, 1));
+		this.bounceKeepSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_BOUNCE_KEEP_PERCENTAGE, MIN_BOUNCE_KEEP_PERCENTAGE, MAX_BOUNCE_KEEP_PERCENTAGE, BOUNCE_KEEP_PERCENTAGE_STEP));
 		this.bounceKeepSpinner.addChangeListener(e -> this.system.setBounceKeep(getBounceKeep() / 100));
 		toolBar.add(bounceLabel);
 		toolBar.add(this.bounceKeepSpinner);
 		toolBar.addSeparator();
 
-
 		return toolBar;
+	}
+
+	private JMenuBar createMenuBar(){
+		JMenuBar menuBar = new JMenuBar();
+		menuBar.add(createFileMenu());
+
+		return menuBar;
+	}
+
+	private JMenu createFileMenu(){
+		JMenu menu = new JMenu("File");
+
+		JMenuItem load = new JMenuItem("Open");
+		load.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK));
+		load.addActionListener(e -> load());
+		menu.add(load);
+
+		menu.addSeparator();
+
+		JMenuItem save = new JMenuItem("Save...");
+		save.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK));
+		save.addActionListener(e -> save());
+		menu.add(save);
+
+		JMenuItem saveAs = new JMenuItem("Save As...");
+		saveAs.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK));
+		saveAs.addActionListener(e -> selectFileAndSave());
+		menu.add(saveAs);
+
+		return menu;
+	}
+
+	private void toggleDisplay(){
+		if(isEditing){
+			displaySimulation();
+		}else{
+			displayEditor();
+		}
+	}
+
+	private void displayEditor(){
+		if(simulationThread != null){
+			simulationThread.interrupt();
+		}
+
+		App.this.remove(simulationPanel);
+		App.this.add(this.editor, BorderLayout.CENTER);
+
+		isEditing = !isEditing;
+		App.this.revalidate();
+
+		this.isEditing = true;
+		this.toggleModeButton.setText("Simulate");
+	}
+
+	private void displaySimulation(){
+		system = new ParticleSystem((int)(WINDOW_SIZE.height * 0.8f / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.height * 0.8f / PIXELS_PER_METER.getY()));
+		this.editor.initializeSystem(system);
+		this.gravity = new GravitationalForce(getGravity());
+		this.viscousDrag = new ViscousDragForce(getViscousDrag());
+		system.addForce(this.gravity);
+		system.addForce(this.viscousDrag);
+		system.setBounceKeep(getBounceKeep() / 100);
+
+		App.this.remove(this.editor);
+		App.this.add(simulationPanel, BorderLayout.CENTER);
+
+		simulationThread = new Thread(){
+			@Override
+			public void run() {
+				simulate();
+			}
+		};
+		simulationThread.start();
+
+		this.isEditing = false;
+		this.toggleModeButton.setText("Edit");
+	}
+
+	private void save(){
+		if(currFile.isPresent()){
+			save(currFile.get());
+			return;
+		}
+		selectFileAndSave();
+	}
+
+	private void selectFileAndSave(){
+		findFreeFileName();
+		FileDialog dialog = new FileDialog(this, "Save As", FileDialog.SAVE);
+		if(currFile.isPresent()){
+			dialog.setFile(currFile.get().getAbsolutePath());
+		}else{
+			System.out.println(findFreeFileName().getAbsolutePath());
+			dialog.setFile(findFreeFileName().getAbsolutePath());
+		}
+		dialog.setFilenameFilter(getFilenameFilter());
+		dialog.setVisible(true);
+		if(dialog.getFile() == null){
+			return;
+		}
+		File file = new File(dialog.getDirectory(), dialog.getFile());
+		save(file);
+	}
+
+	private File findFreeFileName(){
+		File test = new File("Untitled.psim");
+		if(!test.exists()){
+			return test;
+		}
+
+		System.out.println("Finding free filename");
+		for(int i = 1; true; i++){
+			test = new File("Untitled(" + i + ").psim") ;
+			if(!test.exists()){
+				return test;
+			}
+		}
+	}
+
+	private void save(File file){
+		this.currFile = Optional.of(file);
+
+        try (FileOutputStream os = new FileOutputStream(file)){
+			ObjectOutputStream ous = new ObjectOutputStream(os);
+			this.editor.save(ous);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+	private void load(){
+		FileDialog dialog = new FileDialog(this, "Load", FileDialog.LOAD);
+		dialog.setFilenameFilter(getFilenameFilter());
+		dialog.setVisible(true);
+		if(dialog.getFile() == null){
+			return;
+		}
+		File file = new File(dialog.getDirectory(), dialog.getFile());
+		load(file);
+
+		this.currFile = Optional.of(file);
+		displayEditor();
+	}
+
+	private void load(File file){
+		try (FileInputStream is = new FileInputStream(file)){
+			ObjectInputStream ois = new ObjectInputStream(is);
+			this.editor.load(ois);
+		} catch (IOException | ClassNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+    }
+
+	private FilenameFilter getFilenameFilter(){
+		return new FilenameFilter() {
+			@Override
+			public boolean accept(File dir, String name) {
+				return name.endsWith(".psim");
+			}
+		};
 	}
 
 	private void simulate(){

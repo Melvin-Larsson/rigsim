@@ -218,14 +218,10 @@ public class AddSpringTool extends Tool{
     private List<Pair<EditorParticle, EditorParticle>> getSortedNeighbours(){
         var pairs = getAllParis();
         pairs.sort((p1, p2) -> {
-            if(p1 == p2){
-                return 0;
-            }
+            float d1 = distance(p1);
+            float d2 = distance(p2);
 
-            if (distance(p1) > distance(p2)){
-                return 1;
-            }
-            return -1;
+            return Float.compare(d1, d2);
         });
 
         return pairs;
