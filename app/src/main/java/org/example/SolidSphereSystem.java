@@ -1,9 +1,14 @@
 package org.example;
 
+import org.example.simulation.Particle;
+import org.example.simulation.ParticleSystem;
+import org.example.simulation.SimulationParticle;
+import org.example.simulation.SpringForce;
+
 import java.util.List;
 
 public class SolidSphereSystem extends SoftBodySystem {
-    private ParticleSystem.Particle[][] ps;
+    private Particle[][] ps;
 
     private static final float radius = 1;
     private static final int layers = 3;
@@ -15,8 +20,8 @@ public class SolidSphereSystem extends SoftBodySystem {
     }
 
     @Override
-    protected ParticleSystem.Particle[] createParticles(ParticleSystem system) {
-        ps = new ParticleSystem.Particle[layers][angles];
+    protected List<SimulationParticle> createParticles(ParticleSystem system) {
+      /*  ps = new Particle[layers][angles];
 
         Vector2 center = new Vector2(2,2);
         for(int i = 0; i < angles; i++){
@@ -24,11 +29,11 @@ public class SolidSphereSystem extends SoftBodySystem {
             for(int j = 0; j < layers; j++){
                 float currRadius = radius / 3 * (j + 1);
                 Vector2 pos = center.add(new Vector2((float)Math.cos(angle) * currRadius, (float)Math.sin(angle) * currRadius));
-                ps[j][i] = system.addParticle(pos, mass / ps.length);
+                ps[j][i] = new Particle(pos, mass / ps.length);
             }
             for(int j = 0; j < layers - 1; j++){
-                ParticleSystem.Particle curr = ps[j][i];
-                ParticleSystem.Particle next = ps[j + 1][i];
+                Particle curr = ps[j][i];
+                Particle next = ps[j + 1][i];
                 Vector2 diff = next.getPosition().sub(curr.getPosition());
                 system.addForce(new SpringForce(curr, next, diff.length(), 500, 1000));
             }
@@ -36,8 +41,8 @@ public class SolidSphereSystem extends SoftBodySystem {
 
         for(int i = 0; i < layers; i++){
             for(int j = 0; j < angles; j++){
-                ParticleSystem.Particle curr = ps[i][j];
-                ParticleSystem.Particle next = ps[i][(j + 1) % angles];
+                Particle curr = ps[i][j];
+                Particle next = ps[i][(j + 1) % angles];
                 Vector2 diff = next.getPosition().sub(curr.getPosition());
                 system.addForce(new SpringForce(curr, next, diff.length(), 500, 1000));
             }
@@ -45,18 +50,19 @@ public class SolidSphereSystem extends SoftBodySystem {
 
         for(int i = 0; i < angles; i++){
             for(int j = i + 1; j < angles; j++){
-                ParticleSystem.Particle curr = ps[0][i];
-                ParticleSystem.Particle next = ps[0][j];
+                Particle curr = ps[0][i];
+                Particle next = ps[0][j];
                 Vector2 diff = next.getPosition().sub(curr.getPosition());
                 system.addForce(new SpringForce(curr, next, diff.length(), 500, 1000));
             }
         }
-        ParticleSystem.Particle[] result = new ParticleSystem.Particle[layers * angles];
+        Particle[] result = new Particle[layers * angles];
         for(int i = 0; i < result.length; i++){
             result[i] = ps[i / angles][i % angles];
         }
 
-        return result;
+        return result;*/
+        return List.of();
     }
 
     @Override

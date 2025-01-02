@@ -108,7 +108,7 @@ public class BoxTool extends Tool{
     }
 
     private void addParticles(Vector2 topLeft, int width, int height, float spacing){
-        editor.getParticles().addAll(getParticles(topLeft, width, height, spacing));
+        editor.addMultipleParticles(getParticles(topLeft, width, height, spacing).stream().map(v -> super.editor.createEditorParticle(v)).toList());
         editor.getEditorPanel().repaint();
     }
 

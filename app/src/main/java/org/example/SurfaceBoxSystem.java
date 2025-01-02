@@ -1,5 +1,7 @@
 package org.example;
 
+import org.example.simulation.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,19 +15,23 @@ public class SurfaceBoxSystem extends SoftBodySystem {
     }
 
     @Override
-    protected ParticleSystem.Particle[] createParticles(ParticleSystem system) {
+    protected List<SimulationParticle> createParticles(ParticleSystem system) {
         Vector2 center = new Vector2(super.width / 2.0f, super.height / 10.0f);
         Vector2[] positions = {new Vector2(-1, -1), new Vector2(1, -1), new Vector2(1, 1), new Vector2(-1, 1)};
-        ParticleSystem.Particle[] particles = new ParticleSystem.Particle[positions.length];
+
+        List<Particle> particles = new ArrayList<>(positions.length);
 
         for (int i = 0; i < positions.length; i++){
-            particles[i] = system.addParticle(positions[i].add(center), MASS);
+            particles.add(new Particle(positions[i].add(center), MASS));
         }
 
+        List<SimulationParticle> simParticles = ParticleFactory.createSimulationParticles(particles);
+        system.addAllParticles(simParticles);
+
         for (int i = 0; i < positions.length; i++){
-            ParticleSystem.Particle curr = particles[i];
+            SimulationParticle curr = simParticles.get(i);
             for (int j = i + 1; j < positions.length; j++){
-                ParticleSystem.Particle next = particles[j];
+                SimulationParticle next = simParticles.get(j);
                 Vector2 diff = next.getPosition().sub(curr.getPosition());
                 Force f = new SpringForce(curr, next, diff.length(), 5000, 100);
                 if(next.getPosition().getX() == curr.getPosition().getX()){
@@ -35,17 +41,17 @@ public class SurfaceBoxSystem extends SoftBodySystem {
             }
         }
 
-        return particles;
+        return simParticles;
     }
 
     @Override
     public List<Line> getMesh() {
         List<Line> result = new ArrayList<>();
 
-        for (int i = 0; i < super.particles.length; i++){
-            Vector2 p1 = super.particles[i].getPosition();
-            for (int j = i + 1; j < super.particles.length; j++){
-                Vector2 p2 = super.particles[j].getPosition();
+        for (int i = 0; i < super.particles.size(); i++){
+            Vector2 p1 = super.particles.get(i).getPosition();
+            for (int j = i + 1; j < super.particles.size(); j++){
+                Vector2 p2 = super.particles.get(j).getPosition();
                 result.add(new Line(p1, p2));
             }
         }

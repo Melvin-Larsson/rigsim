@@ -1,12 +1,11 @@
 package org.example.editor;
 
+import org.example.ImmutableList;
 import org.example.Vector2;
+import org.example.simulation.Particle;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
-import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 public class SelectTool extends Tool{
@@ -29,7 +28,7 @@ public class SelectTool extends Tool{
 
     @Override
     public void mousePressed(MouseEvent e) {
-        super.editor.getSelectedParticles().clear();
+        super.editor.clearSelection();
         this.starPosition = e.getPoint();
         this.mousePosition = e.getPoint();
     }
@@ -38,14 +37,13 @@ public class SelectTool extends Tool{
     public void mouseDragged(MouseEvent e) {
         this.mousePosition = e.getPoint();
 
-        List<Vector2> selected = super.editor.getSelectedParticles();
-        selected.clear();
+        super.editor.clearSelection();
         Rectangle selection = getSelection();
-        for (Vector2 v : super.editor.getParticles()){
+        for (EditorParticle particle : super.editor.getEditorParticles()){
+            Vector2 v = particle.getPosition();
             Point p = new Point((int)v.getX(), (int)v.getY());
             if(selection.contains(p)){
-                selected.add(v);
-                System.out.println("Selected " + selected.size());
+                super.editor.selectParticle(particle);
             }
         }
 

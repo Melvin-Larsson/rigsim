@@ -1,19 +1,27 @@
 package org.example.editor;
 
+import org.example.ImmutableList;
 import org.example.Vector2;
+import org.example.simulation.*;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
 
 public class Editor extends JPanel {
-    private List<Vector2> particles;
-    private List<Vector2> selectedParticles;
+    private List<EditorParticle> particles;
+    private List<EditorParticle> selectedParticles;
+    private List<Connection> connections;
+
     private Tool currentTool = null;
     private JPanel content;
+
+    private List<EditorListener> listeners;
+
+    private float particleMass = 1;
 
     private Vector2 pixelsPerMeter;
 
@@ -25,6 +33,8 @@ public class Editor extends JPanel {
     private static final File SELECT_ICON = new File(RESOURCE_FOLDER, "select_icon.png");
     private static final File BOX_ICON = new File(RESOURCE_FOLDER, "box_icon.png");
     private static final File SPRING_ICON = new File(RESOURCE_FOLDER, "spring_icon.png");
+    private static final File CIRCLE_ICON = new File(RESOURCE_FOLDER, "circle_icon.png");
+    private static final File CONNECT_ALL_ICON = new File(RESOURCE_FOLDER, "connect_all_icon.png");
 
     private static final String TOOL_KEY = "tool";
 
@@ -32,6 +42,8 @@ public class Editor extends JPanel {
         this.pixelsPerMeter = pixelsPerMeter;
         this.particles = new ArrayList<>();
         this.selectedParticles = new ArrayList<>();
+        this.connections = new ArrayList<>();
+        this.listeners = new ArrayList<>();
 
         this.setLayout(new BorderLayout());
 
@@ -40,15 +52,19 @@ public class Editor extends JPanel {
             public void paint(Graphics g){
                 super.paint(g);
                 g.setColor(Color.BLACK);
-                for (Vector2 particle : particles){
+                for (EditorParticle particle : particles){
                     drawParticle(particle, g);
+                }
+
+                for(Connection connection : connections){
+                    drawConnection(connection, g);
                 }
 
                 if(Editor.this.selectedParticles.size() > 0){
                     System.out.println("Selected");
                 }
                 g.setColor(Color.BLUE);
-                for (Vector2 particle : selectedParticles){
+                for (EditorParticle particle : selectedParticles){
                     drawParticle(particle, g);
                 }
 
@@ -62,8 +78,17 @@ public class Editor extends JPanel {
         ToolData[] tools = {new ToolData(ADD_PARTICLE_ICON, new AddParticleTool(this)),
                             new ToolData(DELETE_PARTICLE_ICON, new DeleteParticleTool(this)),
                             new ToolData(SELECT_ICON, new SelectTool(this)),
-                            new ToolData(BOX_ICON, new BoxTool(this))};
+                            new ToolData(BOX_ICON, new BoxTool(this)),
+                            new ToolData(SPRING_ICON, new AddSpringTool(this)),
+                            new ToolData(CIRCLE_ICON, new CircleTool(this)),
+                            new ToolData(CONNECT_ALL_ICON, new ConnectAllTool(this))};
         this.add(createToolbar(this.content, tools), BorderLayout.NORTH);
+
+        JButton editorDoneButton = new JButton("Done");
+        editorDoneButton.addActionListener(a -> {
+            invokeEditorsDone();
+        });
+        this.add(editorDoneButton, BorderLayout.SOUTH);
 
         content.setFocusable(true);
         content.addMouseListener(new MouseAdapter() {
@@ -76,8 +101,8 @@ public class Editor extends JPanel {
             @Override
             public void keyReleased(KeyEvent e) {
                 if(e.getKeyCode() == KeyEvent.VK_DELETE){
-                    particles.removeAll(selectedParticles);
-                    selectedParticles.clear();
+                    Editor.this.removeMultipleParticles(selectedParticles);
+                    Editor.this.clearSelection();
                     content.repaint();
                 }
             }
@@ -116,21 +141,126 @@ public class Editor extends JPanel {
         return toolbar;
     }
 
-    public void drawParticle(Vector2 particle, Graphics g){
-        Point p = new Point((int)particle.getX(), (int)particle.getY());
+    void drawParticle(EditorParticle particle, Graphics g){
+        this.drawParticle(particle.getPosition(), g);
+    }
+    void drawParticle(Vector2 position, Graphics g){
+        Point p = new Point((int)position.getX(), (int)position.getY());
         g.fillOval(p.x - radius, p.y - radius, radius * 2 + 1, radius * 2 + 1);
     }
 
-    public List<Vector2> getParticles(){
-        return this.particles;
+    void drawConnection(Connection connection, Graphics g){
+        Vector2 start = connection.p1.getPosition();
+        Vector2 end = connection.p2.getPosition();
+        g.drawLine((int)start.getX(), (int)start.getY(), (int)end.getX(), (int)end.getY());
     }
 
-    public List<Vector2> getSelectedParticles(){
-        return this.selectedParticles;
+    private Vector2 scale(Vector2 editorPosition){
+        return new Vector2(editorPosition.getX() / this.pixelsPerMeter.getX(), editorPosition.getY() / this.pixelsPerMeter.getY());
     }
 
-    public JPanel getEditorPanel(){
+    EditorParticle createEditorParticle(Vector2 position){
+        return new EditorParticle(position);
+    }
+
+    public void initializeSystem(ParticleSystem system){
+        List<Particle> particles = new ArrayList<>();
+        Map<EditorParticle, Integer> mapping = new HashMap<>();
+        for (EditorParticle particle : this.particles){
+            mapping.put(particle, particles.size());
+            particles.add(new Particle(scale(particle.getPosition()), particleMass));
+        }
+        List<SimulationParticle> simulationParticles = ParticleFactory.createSimulationParticles(particles);
+        system.addAllParticles(simulationParticles);
+
+        for (Connection connection : connections){
+            SimulationParticle p1 = simulationParticles.get(mapping.get(connection.p1));
+            SimulationParticle p2 = simulationParticles.get(mapping.get(connection.p2));
+            Vector2 diff = p2.getPosition().sub(p1.getPosition());
+            SpringForce force = new SpringForce(p1, p2, diff.length(), 500, 20);
+            system.addForce(force);
+        }
+    }
+
+    ImmutableList<EditorParticle> getEditorParticles(){
+        return new ImmutableList<>(this.particles);
+    }
+    List<EditorParticle> getEditorParticleAt(Vector2 position){
+        float radius = 10;
+        List<EditorParticle> result = new ArrayList<>();
+        for(EditorParticle particle : this.particles){
+            if(particle.getPosition().distance(position) < radius){
+                result.add(particle);
+            }
+        }
+        return result;
+    }
+
+    void addParticle(EditorParticle particle){
+        this.particles.add(particle);
+    }
+    void addMultipleParticles(Collection<EditorParticle> particles){
+        this.particles.addAll(particles);
+    }
+    void removeParticle(EditorParticle particle){
+        this.particles.remove(particle);
+        List<Connection> removeConnections = new LinkedList<>();
+        for(Connection connection : connections){
+            if(connection.p1 == particle || connection.p2 == particle){
+                removeConnections.add(connection);
+            }
+        }
+        connections.removeAll(removeConnections);
+    }
+    void removeMultipleParticles(Collection<EditorParticle> particles){
+        for(EditorParticle particle : particles){
+            this.removeParticle(particle);
+        }
+    }
+
+    ImmutableList<EditorParticle> getSelectedEditorParticles(){
+        return new ImmutableList<>(this.selectedParticles);
+    }
+    void selectParticle(EditorParticle particle){
+        this.selectedParticles.add(particle);
+    }
+    void selectMultipleParticles(Collection<EditorParticle> particles){
+        this.selectedParticles.addAll(particles);
+    }
+    void deselectParticle(EditorParticle particle){
+        this.selectedParticles.add(particle);
+    }
+    void deselectMultipleParticles(Collection<EditorParticle> particles){
+        this.selectedParticles.removeAll(particles);
+    }
+    void clearSelection(){
+        this.selectedParticles.clear();
+    }
+
+    void addConnection(Connection connection){
+        this.connections.add(connection);
+    }
+
+    JPanel getEditorPanel(){
         return this.content;
+    }
+
+    private void invokeEditorsDone(){
+        for(EditorListener listener : this.listeners){
+            listener.onEditorDone(this);
+        }
+    }
+
+    public void addListener(EditorListener listener){
+        if(listener == null || this.listeners.contains(listener)){
+            return;
+        }
+
+        this.listeners.add(listener);
+    }
+
+    public void removeListener(EditorListener listener){
+        this.listeners.remove(listener);
     }
 
     private class ToolData{

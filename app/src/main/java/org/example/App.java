@@ -4,19 +4,27 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 
 import javax.swing.*;
 
 import org.example.editor.Editor;
+import org.example.editor.EditorListener;
+import org.example.simulation.*;
 
 public class App extends JFrame{
 	private static final Vector2 PIXELS_PER_METER = new Vector2(60f,60f);
 	private float radius = 0.1f;
 	private static final Dimension WINDOW_SIZE = new Dimension(500, 600);
 
-	public App() {
+	private ParticleSystem system;
+
+	private Thread simulationThread;
+	private BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
+
+	public App() throws InterruptedException {
 		SoftBodySystem sbs = new SurfaceSphereSystem((int)(WINDOW_SIZE.width / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.width / PIXELS_PER_METER.getY()));
-		ParticleSystem system = sbs.getSystem();
+		system = sbs.getSystem();
 
 		system.addForce(new ViscousDragForce(0.02f));
 		system.addForce(new GravitationalForce());
@@ -46,7 +54,6 @@ public class App extends JFrame{
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
 		this.setSize(WINDOW_SIZE);
 
-		BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
 
 		BorderLayout borderLayout = new BorderLayout();
 		this.setLayout(borderLayout);
@@ -103,39 +110,84 @@ public class App extends JFrame{
 		JPanel content = new JPanel(){
 			@Override
 			public void paint(Graphics g){
-//				for (Vector2 pos : sbs.getNodes()){
-//					Point point = getPosition(pos, radius);
-//					g.fillOval(point.x, point.y, (int)(radius * 2 * PIXELS_PER_METER.getX()), (int)(radius * 2 * PIXELS_PER_METER.getY()));
-//				}
+				for (SimulationParticle particle : system.getParticles()){
+					Point point = getPosition(particle.getPosition(), radius);
+					g.fillOval(point.x, point.y, (int)(radius * 2 * PIXELS_PER_METER.getX()), (int)(radius * 2 * PIXELS_PER_METER.getY()));
+				}
 
-				if(showMeshBox.isSelected()){
-					for(Line line : sbs.getMesh()){
-						Point start = getPosition(line.start);
-						Point end = getPosition(line.end);
-						g.drawLine(start.x, start.y, end.x, end.y);
+				for (Force force : system.getForces()){
+					switch(force){
+						case SpringForce sf:
+							Point p1 = getPosition(sf.getParticleA().getPosition());
+							Point p2 = getPosition(sf.getParticleB().getPosition());
+							g.drawLine(p1.x, p1.y, p2.x, p2.y);
+							break;
+						default:
+							break;
 					}
 				}
-				else{
-					Vector2[] border = sbs.getBorder();
-					int x[] = new int[border.length];
-					int y[] = new int[border.length];
-					for(int i = 0; i < border.length; i++){
-						Point p = getPosition(border[i]);
-						x[i] = p.x;
-						y[i] = p.y;
-					}
-					g.fillPolygon(x, y, border.length);
-				}
+
+//				if(showMeshBox.isSelected()){
+//					for(Line line : sbs.getMesh()){
+//						Point start = getPosition(line.start);
+//						Point end = getPosition(line.end);
+//						g.drawLine(start.x, start.y, end.x, end.y);
+//					}
+//				}
+//				else{
+//					Vector2[] border = sbs.getBorder();
+//					int x[] = new int[border.length];
+//					int y[] = new int[border.length];
+//					for(int i = 0; i < border.length; i++){
+//						Point p = getPosition(border[i]);
+//						x[i] = p.x;
+//						y[i] = p.y;
+//					}
+//					g.fillPolygon(x, y, border.length);
+//				}
 			}
 		};
+
+		JButton editButton = new JButton("Edit");
 		Editor editor = new Editor(PIXELS_PER_METER);
-//		this.add(content, BorderLayout.CENTER);
+
+		editButton.addActionListener(e -> {
+			App.this.remove(content);
+			App.this.remove(editButton);
+			App.this.add(editor, BorderLayout.CENTER);
+			App.this.revalidate();
+			simulationThread.interrupt();
+		});
+
+		editor.addListener(new EditorListener() {
+			@Override
+			public void onEditorDone(Editor editor) {
+				system = new ParticleSystem((int)(WINDOW_SIZE.width / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.width / PIXELS_PER_METER.getY()));
+				editor.initializeSystem(system);
+				system.addForce(new GravitationalForce());
+
+				App.this.remove(editor);
+				App.this.add(content, BorderLayout.CENTER);
+				App.this.add(editButton, BorderLayout.SOUTH);
+				App.this.revalidate();
+				simulationThread = new Thread(){
+					@Override
+					public void run() {
+						simulate();
+					}
+				};
+				simulationThread.start();
+			}
+		});
 		this.add(editor, BorderLayout.CENTER);
+
+
 
 		this.setVisible(true);
 
-		if(true)return;
+	}
 
+	private void simulate(){
 		long lastTime = System.nanoTime();
 		while(true){
 			long time = System.nanoTime();
@@ -152,11 +204,11 @@ public class App extends JFrame{
 			}
 
 			try {
-                Thread.sleep(20);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
+				Thread.sleep(0);
+			} catch (InterruptedException e) {
+				return;
+			}
+		}
 	}
 
 	private Point getPosition(Vector2 v, float radius){
@@ -167,7 +219,7 @@ public class App extends JFrame{
 		return new Point(Math.round((v.getX() * PIXELS_PER_METER.getX())), Math.round(v.getY() * PIXELS_PER_METER.getY()));
 	}
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
     	new App();
     }
 }

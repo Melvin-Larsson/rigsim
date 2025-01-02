@@ -1,8 +1,11 @@
-package org.example;
+package org.example.simulation;
+
+import org.example.Force;
+import org.example.Vector2;
 
 import java.util.List;
 
-public class ViscousDragForce implements Force{
+public class ViscousDragForce implements Force {
     private float drag;
 
     public ViscousDragForce(float drag){
@@ -10,8 +13,8 @@ public class ViscousDragForce implements Force{
     }
 
     @Override
-    public void apply(List<ParticleSystem.Particle> particles) {
-        for (ParticleSystem.Particle particle : particles){
+    public void apply(List<Particle> particles) {
+        for (Particle particle : particles){
             Vector2 force = particle.getVelocity().mul(-drag);
             particle.addForce(force);
         }

@@ -1,15 +1,18 @@
-package org.example;
+package org.example.simulation;
 
-import org.checkerframework.checker.units.qual.A;
+import org.example.*;
 
-import javax.lang.model.type.ArrayType;
-import javax.swing.text.ParagraphView;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class ParticleSystem {
     private List<Particle> particles;
+    private List<SimulationParticle> simulationParticles;
     private List<Force> forces;
+
+    private ImmutableList<SimulationParticle> immutableSimulationParticles;
+    private ImmutableList<Force> immutableForces;
 
     private ODESolver<DParticle, DParticle> solver = new RungeKuttaSolver<>();
 
@@ -23,13 +26,26 @@ public class ParticleSystem {
 
         particles = new ArrayList<>();
         forces = new ArrayList<>();
+        this.immutableForces = new ImmutableList<>(forces);
+        simulationParticles = new ArrayList<>();
+        this.immutableSimulationParticles = new ImmutableList<>(simulationParticles);
     }
 
-    public Particle addParticle(Vector2 pos, float mass){
-        Particle particle = new Particle(pos, mass);
-        this.particles.add(particle);
+    public void addParticle(SimulationParticle particle){
+        this.particles.add(particle.getParticle());
+        this.simulationParticles.add(particle);
+    }
 
-        return particle;
+    public void addAllParticles(Collection<SimulationParticle> particles){
+        this.particles.addAll(particles.stream().map(p -> p.getParticle()).toList());
+        this.simulationParticles.addAll(particles);
+    }
+
+    public ImmutableList<SimulationParticle> getParticles(){
+        return this.immutableSimulationParticles;
+    }
+    public ImmutableList<Force> getForces(){
+        return this.immutableForces;
     }
 
     public void reset(){
@@ -60,7 +76,7 @@ public class ParticleSystem {
 //            particle.position = particle.position.add(particle.velocity.mul(time));
             if(particle.position.getY() > this.height){
                 particle.position = new Vector2(particle.position.getX(), this.height);
-                particle.velocity = new Vector2(particle.velocity.getX(), -particle.velocity.getY());
+                particle.velocity = new Vector2(particle.velocity.getX(), -particle.velocity.getY() * 0.8f);
             }
 //
 //            Vector2 netForce = particle.forces.stream().reduce(new Vector2(0,0), Vector2::add);
@@ -77,7 +93,7 @@ public class ParticleSystem {
         @Override
         public DParticle f(DParticle dParticle) {
             Vector2 netForce = dParticle.particle.forces.stream().reduce(new Vector2(0,0), Vector2::add);
-            return new DParticle(dParticle.dVelocity, netForce.div(dParticle.particle.mass), dParticle.particle);
+            return new DParticle(dParticle.dVelocity, netForce.div(dParticle.particle.getMass()), dParticle.particle);
         }
 
         @Override
@@ -103,46 +119,4 @@ public class ParticleSystem {
         }
     }
 
-    public class Particle {
-        private final Vector2 startPosition;
-
-        private Vector2 position;
-        private Vector2 velocity;
-        private float mass;
-        private List<Vector2> forces;
-
-        public Particle(Vector2 position, float mass){
-            this.position = position;
-            this.startPosition = position;
-            this.velocity = new Vector2(0,0);
-            this.mass = mass;
-            this.forces = new ArrayList<>();
-        }
-
-        private void reset(){
-            this.position = startPosition;
-            this.velocity = new Vector2(0,0);
-            this.forces.clear();
-        }
-
-        public void addForce(Vector2 force){
-            this.forces.add(force);
-        }
-
-        private void clearForces(){
-            this.forces.clear();
-        }
-
-        public Vector2 getPosition(){
-            return position;
-        }
-
-        public Vector2 getVelocity(){
-            return velocity;
-        }
-
-        public float getMass(){
-            return mass;
-        }
-    }
 }

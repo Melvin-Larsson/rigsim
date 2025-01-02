@@ -1,12 +1,16 @@
 package org.example;
 
+import org.example.simulation.Particle;
+import org.example.simulation.ParticleSystem;
+import org.example.simulation.SimulationParticle;
+
 import java.util.List;
 
 public abstract class SoftBodySystem {
     public final int width;
     public final int height;
     private final ParticleSystem system;
-    protected ParticleSystem.Particle[] particles;
+    protected List<SimulationParticle> particles;
 
     public SoftBodySystem(int width, int height){
         this.width = width;
@@ -15,7 +19,7 @@ public abstract class SoftBodySystem {
         this.particles = createParticles(this.system);
     }
 
-    protected abstract  ParticleSystem.Particle[] createParticles(ParticleSystem system);
+    protected abstract List<SimulationParticle> createParticles(ParticleSystem system);
     public abstract List<Line> getMesh();
     public abstract Vector2[] getBorder();
 
@@ -25,9 +29,9 @@ public abstract class SoftBodySystem {
     }
 
     public Vector2[] getNodes(){
-        Vector2[] result = new Vector2[particles.length];
-        for (int i = 0; i < particles.length; i++){
-            result[i] = particles[i].getPosition();
+        Vector2[] result = new Vector2[particles.size()];
+        for (int i = 0; i < particles.size(); i++){
+            result[i] = particles.get(i).getPosition();
         }
         return result;
     }
