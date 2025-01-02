@@ -3,13 +3,11 @@ package org.example;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
-import java.util.Observable;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.swing.*;
-import javax.swing.text.html.Option;
 
 import org.example.editor.Editor;
 import org.example.simulation.*;
@@ -42,17 +40,15 @@ public class App extends JFrame{
 	private GravitationalForce gravity;
 	private ViscousDragForce viscousDrag;
 
+	private JTabbedPane tabbedPane;
 	private JPanel simulationPanel;
 	private JPanel simulationContent;
 	private Editor editor;
-	private JButton toggleModeButton;
 	private Optional<File> currFile;
 	private ParticleSystem system;
 
 	private Thread simulationThread;
 	private BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
-
-	private boolean isEditing;
 
 	public App() throws InterruptedException {
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -61,18 +57,15 @@ public class App extends JFrame{
 		this.setJMenuBar(createMenuBar());
 
 		this.simulationPanel = createSimulationPanel();
-
 		this.editor = new Editor(PIXELS_PER_METER);
 		this.currFile = Optional.empty();
-		this.add(this.editor, BorderLayout.CENTER);
 
-		this.toggleModeButton = new JButton("Simulate");
-		toggleModeButton.addActionListener(e -> {
-			toggleDisplay();
-		});
-		this.add(toggleModeButton, BorderLayout.SOUTH);
-		this.displayEditor();
+		this.tabbedPane = new JTabbedPane();
+		this.tabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
+		this.tabbedPane.addTab("Editor", this.editor);
+		this.tabbedPane.addTab("Simulation", this.simulationPanel);
 
+		this.setContentPane(this.tabbedPane);
 		this.setVisible(true);
 	}
 
@@ -85,6 +78,9 @@ public class App extends JFrame{
 		JPanel content = new JPanel(){
 			@Override
 			public void paint(Graphics g){
+				if(system == null){
+					return;
+				}
 				for (SimulationParticle particle : system.getParticles()){
 					Point point = getPosition(particle.getPosition(), radius);
 					g.fillOval(point.x, point.y, (int)(radius * 2 * PIXELS_PER_METER.getX()), (int)(radius * 2 * PIXELS_PER_METER.getY()));
@@ -202,8 +198,44 @@ public class App extends JFrame{
 	private JMenuBar createMenuBar(){
 		JMenuBar menuBar = new JMenuBar();
 		menuBar.add(createFileMenu());
+		menuBar.add(createRunMenu());
 
 		return menuBar;
+	}
+
+	private JMenu createRunMenu(){
+		JMenu menu = new JMenu("Run");
+
+		JMenuItem run = new JMenuItem("Load and Run");
+		run.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.CTRL_DOWN_MASK));
+		run.addActionListener(e -> loadAndRun());
+		menu.add(run);
+
+		return menu;
+	}
+
+	private void loadAndRun(){
+		if(simulationThread != null){
+			simulationThread.interrupt();
+		}
+
+		Vector2 worldSize = pixelsToMeters(this.simulationContent.getSize());
+		system = new ParticleSystem(worldSize, radius);
+		this.editor.initializeSystem(system);
+		this.gravity = new GravitationalForce(getGravity());
+		this.viscousDrag = new ViscousDragForce(getViscousDrag());
+		system.addForce(this.gravity);
+		system.addForce(this.viscousDrag);
+		system.setBounceKeep(getBounceKeep() / 100);
+
+		simulationThread = new Thread(){
+			@Override
+			public void run() {
+				simulate();
+			}
+		};
+		simulationThread.start();
+		this.tabbedPane.setSelectedComponent(simulationPanel);
 	}
 
 	private JMenu createFileMenu(){
@@ -227,56 +259,6 @@ public class App extends JFrame{
 		menu.add(saveAs);
 
 		return menu;
-	}
-
-	private void toggleDisplay(){
-		if(isEditing){
-			displaySimulation();
-		}else{
-			displayEditor();
-		}
-	}
-
-	private void displayEditor(){
-		if(simulationThread != null){
-			simulationThread.interrupt();
-		}
-
-		App.this.remove(simulationPanel);
-		App.this.add(this.editor, BorderLayout.CENTER);
-
-		isEditing = !isEditing;
-		App.this.revalidate();
-
-		this.isEditing = true;
-		this.toggleModeButton.setText("Simulate");
-	}
-
-	private void displaySimulation(){
-		App.this.remove(this.editor);
-		App.this.add(simulationPanel, BorderLayout.CENTER);
-		App.this.revalidate();
-		App.this.repaint();
-
-		Vector2 worldSize = pixelsToMeters(this.simulationContent.getSize());
-		system = new ParticleSystem(worldSize, radius);
-		this.editor.initializeSystem(system);
-		this.gravity = new GravitationalForce(getGravity());
-		this.viscousDrag = new ViscousDragForce(getViscousDrag());
-		system.addForce(this.gravity);
-		system.addForce(this.viscousDrag);
-		system.setBounceKeep(getBounceKeep() / 100);
-
-		simulationThread = new Thread(){
-			@Override
-			public void run() {
-				simulate();
-			}
-		};
-		simulationThread.start();
-
-		this.isEditing = false;
-		this.toggleModeButton.setText("Edit");
 	}
 
 	private void save(){
@@ -342,7 +324,7 @@ public class App extends JFrame{
 		load(file);
 
 		this.currFile = Optional.of(file);
-		displayEditor();
+		this.tabbedPane.setSelectedComponent(editor);
 	}
 
 	private void load(File file){
