@@ -22,8 +22,6 @@ public class Editor extends JPanel {
     private JPanel optionalToolPanel;
     private JToolBar currentToolbar = null;
 
-    private List<EditorListener> listeners;
-
     private float particleMass = 1;
 
     private Vector2 pixelsPerMeter;
@@ -49,7 +47,6 @@ public class Editor extends JPanel {
         this.particles = new ArrayList<>();
         this.selectedParticles = new ArrayList<>();
         this.editorSprings = new ArrayList<>();
-        this.listeners = new ArrayList<>();
 
         this.setLayout(new BorderLayout());
 
@@ -78,12 +75,6 @@ public class Editor extends JPanel {
         this.optionalToolPanel = new JPanel();
         optionalToolPanel.setLayout(new GridLayout(1,1));
         this.toolPanel.add(optionalToolPanel, gbc);
-
-        JButton editorDoneButton = new JButton("Done");
-        editorDoneButton.addActionListener(a -> {
-            invokeEditorsDone();
-        });
-        this.add(editorDoneButton, BorderLayout.SOUTH);
 
         this.setFocusable(true);
         this.addMouseListener(new MouseAdapter() {
@@ -261,24 +252,6 @@ public class Editor extends JPanel {
 
     JPanel getEditorPanel(){
         return this;
-    }
-
-    private void invokeEditorsDone(){
-        for(EditorListener listener : this.listeners){
-            listener.onEditorDone(this);
-        }
-    }
-
-    public void addListener(EditorListener listener){
-        if(listener == null || this.listeners.contains(listener)){
-            return;
-        }
-
-        this.listeners.add(listener);
-    }
-
-    public void removeListener(EditorListener listener){
-        this.listeners.remove(listener);
     }
 
     private class ToolData{

@@ -4,12 +4,10 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.Semaphore;
 
 import javax.swing.*;
 
 import org.example.editor.Editor;
-import org.example.editor.EditorListener;
 import org.example.simulation.*;
 
 public class App extends JFrame{
@@ -22,90 +20,100 @@ public class App extends JFrame{
 	private Thread simulationThread;
 	private BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
 
+	private boolean isEditing;
+
 	public App() throws InterruptedException {
-		SoftBodySystem sbs = new SurfaceSphereSystem((int)(WINDOW_SIZE.width / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.width / PIXELS_PER_METER.getY()));
-		system = sbs.getSystem();
-
-		system.addForce(new ViscousDragForce(1f));
-		system.addForce(new GravitationalForce());
-
-	/*	ParticleSystem system = new ParticleSystem((int)(500 / PIXELS_PER_METER.getX()), (int)(500 / PIXELS_PER_METER.getY()));
-		float mass = 10;
-
-		ParticleSystem.Particle[] ps = new ParticleSystem.Particle[10];
-		Vector2 center = new Vector2(2,2);
-		float radius = 1f;
-		for(int i = 0; i < ps.length; i++){
-			float angle = (float)(i * 2 * Math.PI / ps.length);
-			Vector2 pos = center.add(new Vector2((float)Math.cos(angle) * radius, (float)Math.sin(angle) * radius));
-			ps[i] = system.addParticle(pos, mass / ps.length);
-		}
-		for(int i = 0; i < ps.length; i++){
-			ParticleSystem.Particle curr = ps[i];
-			for (int j = i + 1; j < ps.length; j++){
-				ParticleSystem.Particle next = ps[j];
-				Vector2 diff = next.getPosition().sub(curr.getPosition());
-				system.addForce(new SpringForce(curr, next, diff.length(), 500, 1000));
-			}
-		}
-		system.addForce(new ViscousDragForce(1f));
-		system.addForce(new GravitationalForce());
-*/
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
 		this.setSize(WINDOW_SIZE);
 
+		JPanel simulationPanel = createSimulationPanel();
 
-		BorderLayout borderLayout = new BorderLayout();
-		this.setLayout(borderLayout);
+		Editor editor = new Editor(PIXELS_PER_METER);
+		this.add(editor, BorderLayout.CENTER);
+		isEditing = true;
 
-		JPanel topPanel = new JPanel();
-		this.add(topPanel, BorderLayout.NORTH);
+		JButton toggleModeButton = new JButton("Simulate");
+		toggleModeButton.addActionListener(e -> {
+			if(isEditing){
+				system = new ParticleSystem((int)(WINDOW_SIZE.width / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.width / PIXELS_PER_METER.getY()));
+				editor.initializeSystem(system);
+				system.addForce(new GravitationalForce());
 
-		JCheckBox showMeshBox = new JCheckBox("Show mesh");
-		topPanel.add(showMeshBox);
+				App.this.remove(editor);
+				App.this.add(simulationPanel, BorderLayout.CENTER);
+				toggleModeButton.setText("Edit");
+
+				simulationThread = new Thread(){
+					@Override
+					public void run() {
+						simulate();
+					}
+				};
+				simulationThread.start();
+			}else{
+				simulationThread.interrupt();
+				App.this.remove(simulationPanel);
+				App.this.add(editor, BorderLayout.CENTER);
+				toggleModeButton.setText("Simulate");
+			}
+
+			isEditing = !isEditing;
+			App.this.revalidate();
+		});
+		this.add(toggleModeButton, BorderLayout.SOUTH);
+
+
+		this.setVisible(true);
+	}
+
+	private JPanel createSimulationPanel(){
+		JPanel simulation = new JPanel();
+		simulation.setLayout(new BorderLayout());
+
+		JToolBar toolBar = new JToolBar();
+		toolBar.setFloatable(false);
+		simulation.add(toolBar, BorderLayout.NORTH);
 
 		JButton restartButton = new JButton("Restart");
 		restartButton.addActionListener(e -> tasks.add(() -> {
 			system.reset();
 		}));
-		topPanel.add(restartButton);
-
+		toolBar.add(restartButton);
 
 		JRadioButton eulerSolverRadio = new JRadioButton("Euler");
 		JRadioButton midPointSolverRadio = new JRadioButton("Midpoint");
 		JRadioButton rungeKuttaSolverRadio = new JRadioButton("RungeKutta");
 
 		ActionListener solverAction = e -> {
-            if(e.getSource().equals(eulerSolverRadio)){
-                tasks.add(() -> {
-                    system.setSolver(new EulerSolver());
-                });
-            }
-            else if(e.getSource().equals(midPointSolverRadio)){
-                tasks.add(() -> {
-                    system.setSolver(new MidPointSolver());
-                });
-            }
-            else{
-                tasks.add(() -> {
-                    system.setSolver(new RungeKuttaSolver());
-                });
-            }
-        };
+			if(e.getSource().equals(eulerSolverRadio)){
+				tasks.add(() -> {
+					system.setSolver(new EulerSolver());
+				});
+			}
+			else if(e.getSource().equals(midPointSolverRadio)){
+				tasks.add(() -> {
+					system.setSolver(new MidPointSolver());
+				});
+			}
+			else{
+				tasks.add(() -> {
+					system.setSolver(new RungeKuttaSolver());
+				});
+			}
+		};
 		eulerSolverRadio.addActionListener(solverAction);
 		midPointSolverRadio.addActionListener(solverAction);
 		rungeKuttaSolverRadio.addActionListener(solverAction);
 
-		system.setSolver(new RungeKuttaSolver());
 		rungeKuttaSolverRadio.setSelected(true);
 
 		ButtonGroup g = new ButtonGroup();
 		g.add(eulerSolverRadio);
 		g.add(midPointSolverRadio);
 		g.add(rungeKuttaSolverRadio);
-		topPanel.add(eulerSolverRadio);
-		topPanel.add(midPointSolverRadio);
-		topPanel.add(rungeKuttaSolverRadio);
+		toolBar.add(eulerSolverRadio);
+		toolBar.add(midPointSolverRadio);
+		toolBar.add(rungeKuttaSolverRadio);
 
 		JPanel content = new JPanel(){
 			@Override
@@ -126,62 +134,11 @@ public class App extends JFrame{
 							break;
 					}
 				}
-
-//				if(showMeshBox.isSelected()){
-//					for(Line line : sbs.getMesh()){
-//						Point start = getPosition(line.start);
-//						Point end = getPosition(line.end);
-//						g.drawLine(start.x, start.y, end.x, end.y);
-//					}
-//				}
-//				else{
-//					Vector2[] border = sbs.getBorder();
-//					int x[] = new int[border.length];
-//					int y[] = new int[border.length];
-//					for(int i = 0; i < border.length; i++){
-//						Point p = getPosition(border[i]);
-//						x[i] = p.x;
-//						y[i] = p.y;
-//					}
-//					g.fillPolygon(x, y, border.length);
-//				}
 			}
 		};
+		simulation.add(content, BorderLayout.CENTER);
 
-		JButton editButton = new JButton("Edit");
-		Editor editor = new Editor(PIXELS_PER_METER);
-
-		editButton.addActionListener(e -> {
-			App.this.remove(content);
-			App.this.remove(editButton);
-			App.this.add(editor, BorderLayout.CENTER);
-			App.this.revalidate();
-			simulationThread.interrupt();
-		});
-
-		editor.addListener(new EditorListener() {
-			@Override
-			public void onEditorDone(Editor editor) {
-				system = new ParticleSystem((int)(WINDOW_SIZE.width / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.width / PIXELS_PER_METER.getY()));
-				editor.initializeSystem(system);
-				system.addForce(new GravitationalForce());
-
-				App.this.remove(editor);
-				App.this.add(content, BorderLayout.CENTER);
-				App.this.add(editButton, BorderLayout.SOUTH);
-				App.this.revalidate();
-				simulationThread = new Thread(){
-					@Override
-					public void run() {
-						simulate();
-					}
-				};
-				simulationThread.start();
-			}
-		});
-		this.add(editor, BorderLayout.CENTER);
-
-		this.setVisible(true);
+		return simulation;
 	}
 
 	private void simulate(){
