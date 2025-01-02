@@ -15,6 +15,25 @@ public class App extends JFrame{
 	private float radius = 0.1f;
 	private static final Dimension WINDOW_SIZE = new Dimension(800, 600);
 
+	private static final float DEFAULT_GRAVITY = 9.82f;
+	private static final float MIN_GRAVITY = -100f;
+	private static final float MAX_GRAVITY = 100f;
+
+	private static final float DEFAULT_VISCOUS_DRAG = 0.01f;
+	private static final float MIN_VISCOUS_DRAG = -100f;
+	private static final float MAX_VISCOUS_DRAG = 100f;
+
+	private static final float DEFAULT_BOUNCE_KEEP_PERCENTAGE = ParticleSystem.DEFAULT_BOUNCE_KEEP * 100;
+	private static final float MIN_BOUNCE_KEEP_PERCENTAGE = 0;
+	private static final float MAX_BOUNCE_KEEP_PERCENTAGE = 100;
+
+	private JSpinner gravitySpinner;
+	private JSpinner bounceKeepSpinner;
+	private JSpinner viscousDragSpinner;
+
+	private GravitationalForce gravity;
+	private ViscousDragForce viscousDrag;
+
 	private ParticleSystem system;
 
 	private Thread simulationThread;
@@ -37,7 +56,11 @@ public class App extends JFrame{
 			if(isEditing){
 				system = new ParticleSystem((int)(WINDOW_SIZE.height * 0.8f / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.height * 0.8f / PIXELS_PER_METER.getY()));
 				editor.initializeSystem(system);
-				system.addForce(new GravitationalForce());
+				this.gravity = new GravitationalForce(getGravity());
+				this.viscousDrag = new ViscousDragForce(getViscousDrag());
+				system.addForce(this.gravity);
+				system.addForce(this.viscousDrag);
+				system.setBounceKeep(getBounceKeep() / 100);
 
 				App.this.remove(editor);
 				App.this.add(simulationPanel, BorderLayout.CENTER);
@@ -70,9 +93,38 @@ public class App extends JFrame{
 		JPanel simulation = new JPanel();
 		simulation.setLayout(new BorderLayout());
 
+		simulation.add(createToolbar(), BorderLayout.NORTH);
+
+		JPanel content = new JPanel(){
+			@Override
+			public void paint(Graphics g){
+				for (SimulationParticle particle : system.getParticles()){
+					Point point = getPosition(particle.getPosition(), radius);
+					g.fillOval(point.x, point.y, (int)(radius * 2 * PIXELS_PER_METER.getX()), (int)(radius * 2 * PIXELS_PER_METER.getY()));
+				}
+
+				for (Force force : system.getForces()){
+					switch(force){
+						case SpringForce sf:
+							Point p1 = getPosition(sf.getParticleA().getPosition());
+							Point p2 = getPosition(sf.getParticleB().getPosition());
+							g.drawLine(p1.x, p1.y, p2.x, p2.y);
+							break;
+						default:
+							break;
+					}
+				}
+			}
+		};
+		simulation.add(content, BorderLayout.CENTER);
+
+		return simulation;
+	}
+
+	private JToolBar createToolbar(){
 		JToolBar toolBar = new JToolBar();
+		toolBar.setLayout(new FlowLayout(FlowLayout.LEADING, 5, 5));
 		toolBar.setFloatable(false);
-		simulation.add(toolBar, BorderLayout.NORTH);
 
 		JButton restartButton = new JButton("Restart");
 		restartButton.addActionListener(e -> tasks.add(() -> {
@@ -115,30 +167,30 @@ public class App extends JFrame{
 		toolBar.add(midPointSolverRadio);
 		toolBar.add(rungeKuttaSolverRadio);
 
-		JPanel content = new JPanel(){
-			@Override
-			public void paint(Graphics g){
-				for (SimulationParticle particle : system.getParticles()){
-					Point point = getPosition(particle.getPosition(), radius);
-					g.fillOval(point.x, point.y, (int)(radius * 2 * PIXELS_PER_METER.getX()), (int)(radius * 2 * PIXELS_PER_METER.getY()));
-				}
+		toolBar.addSeparator();
 
-				for (Force force : system.getForces()){
-					switch(force){
-						case SpringForce sf:
-							Point p1 = getPosition(sf.getParticleA().getPosition());
-							Point p2 = getPosition(sf.getParticleB().getPosition());
-							g.drawLine(p1.x, p1.y, p2.x, p2.y);
-							break;
-						default:
-							break;
-					}
-				}
-			}
-		};
-		simulation.add(content, BorderLayout.CENTER);
+		JLabel gravityLabel = new JLabel("Gravity");
+		this.gravitySpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_GRAVITY, MIN_GRAVITY, MAX_GRAVITY, 1));
+		this.gravitySpinner.addChangeListener(e -> this.gravity.setAcceleration(getGravity()));
+		toolBar.add(gravityLabel);
+		toolBar.add(this.gravitySpinner);
+		toolBar.addSeparator();
 
-		return simulation;
+		JLabel viscousDragLabel = new JLabel("Viscous drag");
+		this.viscousDragSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_VISCOUS_DRAG, MIN_VISCOUS_DRAG, MAX_VISCOUS_DRAG, 1));
+		this.viscousDragSpinner.addChangeListener(e -> this.viscousDrag.setDrag(getViscousDrag()));
+		toolBar.add(viscousDragLabel);
+		toolBar.add(this.viscousDragSpinner);
+
+		JLabel bounceLabel = new JLabel("Bounce");
+		this.bounceKeepSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_BOUNCE_KEEP_PERCENTAGE, MIN_BOUNCE_KEEP_PERCENTAGE, MAX_BOUNCE_KEEP_PERCENTAGE, 1));
+		this.bounceKeepSpinner.addChangeListener(e -> this.system.setBounceKeep(getBounceKeep() / 100));
+		toolBar.add(bounceLabel);
+		toolBar.add(this.bounceKeepSpinner);
+		toolBar.addSeparator();
+
+
+		return toolBar;
 	}
 
 	private void simulate(){
@@ -163,6 +215,18 @@ public class App extends JFrame{
 				return;
 			}
 		}
+	}
+
+	private float getGravity(){
+		return (float)(double)this.gravitySpinner.getValue();
+	}
+
+	private float getViscousDrag(){
+		return (float)(double)this.viscousDragSpinner.getValue();
+	}
+
+	private float getBounceKeep(){
+		return (float)(double)this.bounceKeepSpinner.getValue();
 	}
 
 	private Point getPosition(Vector2 v, float radius){

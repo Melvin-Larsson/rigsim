@@ -7,6 +7,8 @@ import java.util.Collection;
 import java.util.List;
 
 public class ParticleSystem {
+    public static final float DEFAULT_BOUNCE_KEEP = 0.9f;
+
     private List<Particle> particles;
     private List<SimulationParticle> simulationParticles;
     private List<Force> forces;
@@ -15,6 +17,8 @@ public class ParticleSystem {
     private ImmutableList<Force> immutableForces;
 
     private ODESolver<DParticle, DParticle> solver = new RungeKuttaSolver<>();
+
+    private float bounceKeep = DEFAULT_BOUNCE_KEEP;
 
 
     private int width;
@@ -76,7 +80,7 @@ public class ParticleSystem {
 //            particle.position = particle.position.add(particle.velocity.mul(time));
             if(particle.position.getY() > this.height){
                 particle.position = new Vector2(particle.position.getX(), this.height);
-                particle.velocity = new Vector2(particle.velocity.getX(), -particle.velocity.getY() * 0.8f);
+                particle.velocity = new Vector2(particle.velocity.getX(), -particle.velocity.getY() * bounceKeep);
             }
 //
 //            Vector2 netForce = particle.forces.stream().reduce(new Vector2(0,0), Vector2::add);
@@ -87,6 +91,18 @@ public class ParticleSystem {
     public void setSolver(ODESolver solver){
         System.out.println("Using " + solver.getClass() + " solver");
         this.solver = solver;
+    }
+
+    public float getBounceKeep() {
+        return bounceKeep;
+    }
+
+    public void setBounceKeep(float bounceKeep) {
+        if(bounceKeep < 0){
+            throw new IllegalArgumentException("Bounce keep can not be less than zero. Provided value was " + bounceKeep);
+        }
+
+        this.bounceKeep = bounceKeep;
     }
 
     private class ParticleODE implements ODE<DParticle, DParticle> {

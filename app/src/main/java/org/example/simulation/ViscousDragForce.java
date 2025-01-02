@@ -19,4 +19,13 @@ public class ViscousDragForce implements Force {
             particle.addForce(force);
         }
     }
+
+    public float getDrag() {
+        return drag;
+    }
+
+    public void setDrag(float drag) {
+        this.drag = drag;
+    }
+
 }
