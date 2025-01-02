@@ -1,18 +1,13 @@
 package org.example;
 
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.List;
-import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import javax.management.relation.RelationNotFoundException;
 import javax.swing.*;
 
-import org.ejml.data.*;
-import org.ejml.simple.*;
+import org.example.editor.Editor;
 
 public class App extends JFrame{
 	private static final Vector2 PIXELS_PER_METER = new Vector2(60f,60f);
@@ -23,7 +18,7 @@ public class App extends JFrame{
 		SoftBodySystem sbs = new SurfaceSphereSystem((int)(WINDOW_SIZE.width / PIXELS_PER_METER.getX()), (int)(WINDOW_SIZE.width / PIXELS_PER_METER.getY()));
 		ParticleSystem system = sbs.getSystem();
 
-		system.addForce(new ViscousDragForce(0.01f));
+		system.addForce(new ViscousDragForce(0.02f));
 		system.addForce(new GravitationalForce());
 
 	/*	ParticleSystem system = new ParticleSystem((int)(500 / PIXELS_PER_METER.getX()), (int)(500 / PIXELS_PER_METER.getY()));
@@ -133,9 +128,13 @@ public class App extends JFrame{
 				}
 			}
 		};
-		this.add(content, BorderLayout.CENTER);
+		Editor editor = new Editor(PIXELS_PER_METER);
+//		this.add(content, BorderLayout.CENTER);
+		this.add(editor, BorderLayout.CENTER);
 
 		this.setVisible(true);
+
+		if(true)return;
 
 		long lastTime = System.nanoTime();
 		while(true){
@@ -153,7 +152,7 @@ public class App extends JFrame{
 			}
 
 			try {
-                Thread.sleep(0);
+                Thread.sleep(20);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }

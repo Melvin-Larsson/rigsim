@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SurfaceSphereSystem extends SoftBodySystem{
-    private static final float MASS = 4;
+    private static final float MASS = 2;
 
     public SurfaceSphereSystem(int width, int height) {
         super(width, height);
@@ -12,7 +12,7 @@ public class SurfaceSphereSystem extends SoftBodySystem{
 
     @Override
     protected ParticleSystem.Particle[] createParticles(ParticleSystem system) {
-        ParticleSystem.Particle ps[] = new ParticleSystem.Particle[20];
+        ParticleSystem.Particle ps[] = new ParticleSystem.Particle[10];
 
         Vector2 center = new Vector2(width / 2.0f,height * 0.2f);
         float radius = 1f;
@@ -26,7 +26,7 @@ public class SurfaceSphereSystem extends SoftBodySystem{
             for (int j = i + 1; j < ps.length; j++){
                 ParticleSystem.Particle next = ps[j];
                 Vector2 diff = next.getPosition().sub(curr.getPosition());
-                system.addForce(new SpringForce(curr, next, diff.length(), 500, 10));
+                system.addForce(new SpringForce(curr, next, diff.length(), 500, 20));
             }
         }
         return ps;
