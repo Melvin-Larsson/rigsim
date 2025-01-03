@@ -1,6 +1,7 @@
 package org.example.editor;
 
 import org.example.ImmutableList;
+import org.example.Scale;
 import org.example.Vector2;
 import org.example.simulation.*;
 
@@ -26,7 +27,7 @@ public class Editor extends JPanel {
 
     private float particleMass = 1;
 
-    private Vector2 pixelsPerMeter;
+    private Scale scale;
 
     private static final int radius = 5;
 
@@ -44,8 +45,8 @@ public class Editor extends JPanel {
     public static final float MAX_SPRING_CONSTANT = 10000;
     public static final float MAX_DAMPING_CONSTANT = 10000;
 
-    public Editor(Vector2 pixelsPerMeter){
-        this.pixelsPerMeter = pixelsPerMeter;
+    public Editor(Scale scale){
+        this.scale = scale;
         this.particles = new ArrayList<>();
         this.selectedParticles = new ArrayList<>();
         this.editorSprings = new ArrayList<>();
@@ -173,10 +174,6 @@ public class Editor extends JPanel {
         g.drawLine((int)start.getX(), (int)start.getY(), (int)end.getX(), (int)end.getY());
     }
 
-    private Vector2 scale(Vector2 editorPosition){
-        return new Vector2(editorPosition.getX() / this.pixelsPerMeter.getX(), editorPosition.getY() / this.pixelsPerMeter.getY());
-    }
-
     EditorParticle createEditorParticle(Vector2 position){
         return new EditorParticle(position);
     }
@@ -186,7 +183,7 @@ public class Editor extends JPanel {
         Map<EditorParticle, Integer> mapping = new HashMap<>();
         for (EditorParticle particle : this.particles){
             mapping.put(particle, particles.size());
-            particles.add(new Particle(scale(particle.getPosition()), particleMass));
+            particles.add(new Particle(scale.scaleToMeters(particle.getPosition()), particleMass));
         }
         List<SimulationParticle> simulationParticles = ParticleFactory.createSimulationParticles(particles);
         system.addAllParticles(simulationParticles);

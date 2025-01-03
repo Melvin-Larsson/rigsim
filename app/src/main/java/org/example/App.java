@@ -13,7 +13,7 @@ import org.example.editor.Editor;
 import org.example.simulation.*;
 
 public class App extends JFrame{
-	private static final Vector2 PIXELS_PER_METER = new Vector2(60f,60f);
+	private static final Scale SCALE = new Scale(60f,60f);
 	private float radius = 0.1f;
 	private static final Dimension WINDOW_SIZE = new Dimension(800, 600);
 
@@ -59,7 +59,7 @@ public class App extends JFrame{
 		this.setJMenuBar(createMenuBar());
 
 		this.simulationPanel = createSimulationPanel();
-		this.editor = new Editor(PIXELS_PER_METER);
+		this.editor = new Editor(SCALE);
 		this.currFile = Optional.empty();
 		this.system = new ParticleSystem(new Vector2(0, 0), 0);
 		this.viscousDrag = new ViscousDragForce(DEFAULT_VISCOUS_DRAG);
@@ -90,14 +90,15 @@ public class App extends JFrame{
 				}
 				for (SimulationParticle particle : system.getParticles()){
 					Point point = getPosition(particle.getPosition(), radius);
-					g.fillOval(point.x, point.y, (int)(radius * 2 * PIXELS_PER_METER.getX()), (int)(radius * 2 * PIXELS_PER_METER.getY()));
+					Point size = SCALE.scaleToPixels(new Vector2(radius * 2, radius * 2)).toPoint();
+					g.fillOval(point.x, point.y, size.x, size.y);
 				}
 
 				for (Force force : system.getForces()){
 					switch(force){
 						case SpringForce sf:
-							Point p1 = getPosition(sf.getParticleA().getPosition());
-							Point p2 = getPosition(sf.getParticleB().getPosition());
+							Point p1 = SCALE.scaleToPixels(sf.getParticleA().getPosition()).toPoint();
+							Point p2 = SCALE.scaleToPixels(sf.getParticleB().getPosition()).toPoint();
 							g.drawLine(p1.x, p1.y, p2.x, p2.y);
 							break;
 						default:
@@ -120,7 +121,7 @@ public class App extends JFrame{
 
 			private void updateSimulatorSize(){
 				if(system != null){
-					Vector2 worldSize = pixelsToMeters(content.getSize());
+					Vector2 worldSize = SCALE.scaleToMeters(content.getSize());
 					system.setSize(worldSize);
 				}
 			}
@@ -227,7 +228,7 @@ public class App extends JFrame{
 			simulationThread.interrupt();
 		}
 
-		Vector2 worldSize = pixelsToMeters(this.simulationContent.getSize());
+		Vector2 worldSize = SCALE.scaleToMeters(this.simulationContent.getSize());
 		system = new ParticleSystem(worldSize, radius);
 		this.editor.initializeSystem(system);
 		this.gravity = new GravitationalForce(getGravity());
@@ -390,13 +391,6 @@ public class App extends JFrame{
 		}
 	}
 
-	private Vector2 pixelsToMeters(Point p){
-		return new Vector2((float)p.getX() / PIXELS_PER_METER.getX(), (float)p.getY() / PIXELS_PER_METER.getY());
-	}
-	private Vector2 pixelsToMeters(Dimension d){
-		return new Vector2((float)d.getWidth() / PIXELS_PER_METER.getX(), (float)d.getHeight() / PIXELS_PER_METER.getY());
-	}
-
 	private float getGravity(){
 		return (float)(double)this.gravitySpinner.getValue();
 	}
@@ -410,11 +404,7 @@ public class App extends JFrame{
 	}
 
 	private Point getPosition(Vector2 v, float radius){
-		return new Point(Math.round((v.getX() - radius) * PIXELS_PER_METER.getX()), Math.round((v.getY() - radius) * PIXELS_PER_METER.getY()));
-	}
-
-	private Point getPosition(Vector2 v){
-		return new Point(Math.round((v.getX() * PIXELS_PER_METER.getX())), Math.round(v.getY() * PIXELS_PER_METER.getY()));
+		return SCALE.scaleToPixels(v.sub(new Vector2(radius, radius))).toPoint();
 	}
 
     public static void main(String[] args) throws Exception {

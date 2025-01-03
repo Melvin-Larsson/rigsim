@@ -1,5 +1,6 @@
 package org.example;
 
+import java.awt.*;
 import java.io.Serializable;
 
 public class Vector2 implements Serializable {
@@ -56,5 +57,9 @@ public class Vector2 implements Serializable {
     @Override
     public String toString(){
         return "(" + this.x + ", " + this.y + ")";
+    }
+
+    public Point toPoint(){
+        return new Point(Math.round(this.getX()), Math.round(this.getY()));
     }
 }
