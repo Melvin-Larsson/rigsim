@@ -50,7 +50,9 @@ public class App extends JFrame{
 	private Thread simulationThread;
 	private BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
 
-	public App() throws InterruptedException {
+	public App() throws Exception{
+		UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		var x = UIManager.getDefaults();
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
 		this.setMinimumSize(WINDOW_SIZE);
 
@@ -59,6 +61,9 @@ public class App extends JFrame{
 		this.simulationPanel = createSimulationPanel();
 		this.editor = new Editor(PIXELS_PER_METER);
 		this.currFile = Optional.empty();
+		this.system = new ParticleSystem(new Vector2(0, 0), 0);
+		this.viscousDrag = new ViscousDragForce(DEFAULT_VISCOUS_DRAG);
+		this.gravity = new GravitationalForce(DEFAULT_GRAVITY);
 
 		this.tabbedPane = new JTabbedPane();
 		this.tabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
@@ -78,6 +83,8 @@ public class App extends JFrame{
 		JPanel content = new JPanel(){
 			@Override
 			public void paint(Graphics g){
+				super.paint(g);
+
 				if(system == null){
 					return;
 				}
@@ -118,6 +125,7 @@ public class App extends JFrame{
 				}
 			}
 		});
+		content.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1, true));
 		simulation.add(content, BorderLayout.CENTER);
 		this.simulationContent = content; //FIXME: Hack
 
@@ -408,7 +416,7 @@ public class App extends JFrame{
 		return new Point(Math.round((v.getX() * PIXELS_PER_METER.getX())), Math.round(v.getY() * PIXELS_PER_METER.getY()));
 	}
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws Exception {
     	new App();
     }
 }

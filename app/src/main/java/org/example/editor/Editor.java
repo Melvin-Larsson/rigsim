@@ -51,7 +51,9 @@ public class Editor extends JPanel {
         this.editorSprings = new ArrayList<>();
 
         this.setLayout(new BorderLayout());
-        this.add(new JLabel(), BorderLayout.CENTER);
+        JPanel center = new JPanel(); //A bit of a hack to get a border
+        center.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1, true));
+        this.add(center, BorderLayout.CENTER);
 
         this.toolPanel = new JPanel();
         this.toolPanel.setLayout(new GridBagLayout());
