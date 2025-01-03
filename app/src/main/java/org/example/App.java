@@ -279,6 +279,7 @@ public class App extends JFrame{
 	private void newSave(){
 		this.editor.reset();
 		this.currFile = Optional.empty();
+		this.tabbedPane.setSelectedComponent(editor);
 	}
 
 	private void save(){
