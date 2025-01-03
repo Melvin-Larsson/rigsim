@@ -241,6 +241,13 @@ public class App extends JFrame{
 	private JMenu createFileMenu(){
 		JMenu menu = new JMenu("File");
 
+		JMenuItem newSave = new JMenuItem("New...");
+		newSave.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK));
+		newSave.addActionListener(e -> newSave());
+		menu.add(newSave);
+
+		menu.addSeparator();
+
 		JMenuItem load = new JMenuItem("Open");
 		load.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK));
 		load.addActionListener(e -> load());
@@ -259,6 +266,11 @@ public class App extends JFrame{
 		menu.add(saveAs);
 
 		return menu;
+	}
+
+	private void newSave(){
+		this.editor.reset();
+		this.currFile = Optional.empty();
 	}
 
 	private void save(){

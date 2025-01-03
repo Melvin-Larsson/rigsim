@@ -30,18 +30,6 @@ public class Editor extends JPanel {
 
     private static final int radius = 5;
 
-    public void save(ObjectOutputStream oos) throws IOException {
-        oos.writeObject(particles);
-        oos.writeObject(editorSprings);
-    }
-
-    public void load(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-        this.particles = (List<EditorParticle>) ois.readObject();
-        this.editorSprings = (List<EditorSpring>) ois.readObject();
-        this.clearSelection();
-        this.repaint();
-    }
-
     private static final File RESOURCE_FOLDER = new File("src/main/resources/");
     private static final File ADD_PARTICLE_ICON = new File(RESOURCE_FOLDER, "add_particle_icon.png");
     private static final File DELETE_PARTICLE_ICON = new File(RESOURCE_FOLDER, "delete_particle_icon.png");
@@ -148,6 +136,25 @@ public class Editor extends JPanel {
         }
 
         return toolbar;
+    }
+
+    public void save(ObjectOutputStream oos) throws IOException {
+        oos.writeObject(particles);
+        oos.writeObject(editorSprings);
+    }
+
+    public void load(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+        this.particles = (List<EditorParticle>) ois.readObject();
+        this.editorSprings = (List<EditorSpring>) ois.readObject();
+        this.clearSelection();
+        this.repaint();
+    }
+
+    public void reset(){
+        this.particles.clear();
+        this.editorSprings.clear();
+        this.clearSelection();
+        this.repaint();
     }
 
     void drawParticle(EditorParticle particle, Graphics g){
