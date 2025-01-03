@@ -235,6 +235,10 @@ public class App extends JFrame{
 		this.viscousDrag = new ViscousDragForce(getViscousDrag());
 		system.addForce(this.gravity);
 		system.addForce(this.viscousDrag);
+		MouseForce mouseForce = new MouseForce(SCALE);
+		this.simulationContent.addMouseListener(mouseForce);
+		this.simulationContent.addMouseMotionListener(mouseForce);
+		system.addForce(mouseForce);
 		system.setBounceKeep(getBounceKeep() / 100);
 
 		simulationThread = new Thread(){
