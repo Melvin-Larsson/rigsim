@@ -26,8 +26,6 @@ public class Editor extends JPanel {
     private GridBagConstraints optionalToolPanelConstraints;
     private JToolBar currentToolbar = null;
 
-    private float particleMass = 1;
-
     private Scale scale;
 
     private static final int radius = 5;

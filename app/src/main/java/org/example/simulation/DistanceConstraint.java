@@ -1,8 +1,6 @@
 package org.example.simulation;
 
-import org.apache.commons.math3.linear.OpenMapRealMatrix;
 import org.apache.commons.math3.linear.RealMatrix;
-import org.ejml.simple.SimpleMatrix;
 import org.example.Vector2;
 
 import java.util.List;
