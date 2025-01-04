@@ -208,6 +208,10 @@ public class Editor extends JPanel {
             Vector2 diff = p2.getPosition().sub(p1.getPosition());
             if(editorSpring.isStiff){
                 system.addConstraints(new DistanceConstraint(p1, p2, diff.length()));
+
+                //Hack to get stiff constraints to display
+                SpringForce force = new SpringForce(p1, p2, diff.length(), 0, 0);
+                system.addForce(force);
             }else{
                 SpringForce force = new SpringForce(p1, p2, diff.length(), editorSpring.springConstant, editorSpring.dampingConstant);
                 system.addForce(force);
