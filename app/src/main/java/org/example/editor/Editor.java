@@ -1,6 +1,7 @@
 package org.example.editor;
 
 import org.example.ImmutableList;
+import org.example.ResourceManager;
 import org.example.Scale;
 import org.example.Vector2;
 import org.example.simulation.*;
@@ -31,14 +32,13 @@ public class Editor extends JPanel {
 
     private static final int radius = 5;
 
-    private static final File RESOURCE_FOLDER = new File("src/main/resources/");
-    private static final File ADD_PARTICLE_ICON = new File(RESOURCE_FOLDER, "add_particle_icon.png");
-    private static final File DELETE_PARTICLE_ICON = new File(RESOURCE_FOLDER, "delete_particle_icon.png");
-    private static final File SELECT_ICON = new File(RESOURCE_FOLDER, "select_icon.png");
-    private static final File BOX_ICON = new File(RESOURCE_FOLDER, "box_icon.png");
-    private static final File SPRING_ICON = new File(RESOURCE_FOLDER, "spring_icon.png");
-    private static final File CIRCLE_ICON = new File(RESOURCE_FOLDER, "circle_icon.png");
-    private static final File MOVE_ICON = new File(RESOURCE_FOLDER, "move_icon.png");
+    private static final String ADD_PARTICLE_ICON = "add_particle_icon.png";
+    private static final String DELETE_PARTICLE_ICON = "delete_particle_icon.png";
+    private static final String SELECT_ICON = "select_icon.png";
+    private static final String BOX_ICON = "box_icon.png";
+    private static final String SPRING_ICON = "spring_icon.png";
+    private static final String CIRCLE_ICON = "circle_icon.png";
+    private static final String MOVE_ICON = "move_icon.png";
 
     private static final String TOOL_KEY = "tool";
 
@@ -296,8 +296,8 @@ public class Editor extends JPanel {
         private final ImageIcon icon;
         private final Tool tool;
 
-        private ToolData(File iconFile, Tool tool){
-            this.icon = new ImageIcon(iconFile.getAbsolutePath());
+        private ToolData(String image, Tool tool){
+            this.icon = ResourceManager.getInstance().loadImage(image);
             this.tool = tool;
         }
     }

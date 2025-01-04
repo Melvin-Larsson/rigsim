@@ -79,7 +79,7 @@ public class App extends JFrame{
 
 		this.addWindowListener(new WindowAdapter() {
 			@Override
-			public void windowClosing(WindowEvent e) {
+			public void windowClosing(WindowEvent e){
 				super.windowClosed(e);
 				saveConfig(new AppConfig(App.this.currentSolver, getGravity(), getBounceKeep(), getViscousDrag(), App.this.currFile.orElse(null)));
 				saveTempEditorState(App.this.editor);
