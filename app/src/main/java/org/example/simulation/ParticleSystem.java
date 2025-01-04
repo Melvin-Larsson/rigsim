@@ -1,19 +1,9 @@
 package org.example.simulation;
 
-import org.apache.commons.math3.exception.DimensionMismatchException;
-import org.apache.commons.math3.exception.MaxCountExceededException;
-import org.checkerframework.checker.units.qual.A;
-import org.ejml.data.DMatrixRMaj;
-import org.ejml.interfaces.linsol.LinearSolver;
-import org.ejml.simple.SimpleMatrix;
-import org.ejml.sparse.csc.factory.DecompositionFactory_DSCC;
-import org.ejml.sparse.csc.factory.LinearSolverFactory_DSCC;
 import org.example.*;
 import org.apache.commons.math3.linear.*;
 
-import javax.swing.text.StyleConstants;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -196,6 +186,10 @@ public class ParticleSystem {
     public void setSolver(ODESolver solver){
         System.out.println("Using " + solver.getClass() + " solver");
         this.solver = solver;
+    }
+
+    public ODESolver getSolver(){
+        return this.solver;
     }
 
     public float getBounceKeep() {

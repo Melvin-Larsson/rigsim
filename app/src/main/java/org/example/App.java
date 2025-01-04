@@ -3,6 +3,7 @@ package org.example;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
+import java.util.Enumeration;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -33,6 +34,9 @@ public class App extends JFrame{
 	private static final float MAX_BOUNCE_KEEP_PERCENTAGE = 100;
 	private static final float BOUNCE_KEEP_PERCENTAGE_STEP = 1;
 
+	private static final String CONFIG_FILE_NAME = "config";
+	private static final String TEMP_EDITOR_SAVE = "temp-build";
+
 	private JSpinner gravitySpinner;
 	private JSpinner bounceKeepSpinner;
 	private JSpinner viscousDragSpinner;
@@ -46,29 +50,41 @@ public class App extends JFrame{
 	private Editor editor;
 	private Optional<File> currFile;
 	private ParticleSystem system;
+	private EOdeSolver currentSolver;
 
 	private Thread simulationThread;
 	private BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
 
 	public App() throws Exception{
 		UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		var x = UIManager.getDefaults();
+
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
 		this.setMinimumSize(WINDOW_SIZE);
 
 		this.setJMenuBar(createMenuBar());
 
-		this.simulationPanel = createSimulationPanel();
-		this.editor = new Editor(SCALE);
-		this.currFile = Optional.empty();
+		AppConfig config = readConfig();
+		this.currFile = Optional.ofNullable(config.currFile);
 		this.system = new ParticleSystem(new Vector2(0, 0), 0);
 		this.viscousDrag = new ViscousDragForce(DEFAULT_VISCOUS_DRAG);
 		this.gravity = new GravitationalForce(DEFAULT_GRAVITY);
+		this.simulationPanel = createSimulationPanel();
+		this.editor = new Editor(SCALE);
+		loadTempEditorState(editor);
 
 		this.tabbedPane = new JTabbedPane();
 		this.tabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
 		this.tabbedPane.addTab("Editor", this.editor);
 		this.tabbedPane.addTab("Simulation", this.simulationPanel);
+
+		this.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				super.windowClosed(e);
+				saveConfig(new AppConfig(App.this.currentSolver, getGravity(), getBounceKeep(), getViscousDrag(), App.this.currFile.orElse(null)));
+				saveTempEditorState(App.this.editor);
+			}
+		});
 
 		this.setContentPane(this.tabbedPane);
 		this.setVisible(true);
@@ -134,9 +150,12 @@ public class App extends JFrame{
 	}
 
 	private JToolBar createToolbar(){
+		AppConfig config = readConfig();
+
 		JToolBar toolBar = new JToolBar();
 		toolBar.setLayout(new FlowLayout(FlowLayout.LEADING, 5, 5));
 		toolBar.setFloatable(false);
+
 
 		JButton restartButton = new JButton("Restart");
 		restartButton.addActionListener(e -> tasks.add(() -> {
@@ -144,58 +163,48 @@ public class App extends JFrame{
 		}));
 		toolBar.add(restartButton);
 
-		JRadioButton eulerSolverRadio = new JRadioButton("Euler");
-		JRadioButton midPointSolverRadio = new JRadioButton("Midpoint");
-		JRadioButton rungeKuttaSolverRadio = new JRadioButton("RungeKutta");
+		final String solverKey = "solver";
+		ButtonGroup solverGroup = new ButtonGroup();
+		EOdeSolver[] solvers = EOdeSolver.values();
 
-		ActionListener solverAction = e -> {
-			if(e.getSource().equals(eulerSolverRadio)){
-				tasks.add(() -> {
-					system.setSolver(new EulerSolver());
-				});
-			}
-			else if(e.getSource().equals(midPointSolverRadio)){
-				tasks.add(() -> {
-					system.setSolver(new MidPointSolver());
-				});
-			}
-			else{
-				tasks.add(() -> {
-					system.setSolver(new RungeKuttaSolver());
-				});
-			}
+		this.currentSolver = config.odeSolver;
+		this.system.setSolver(this.currentSolver.getSolver());
+		ActionListener solverListener = e ->{
+			JRadioButton source = (JRadioButton) e.getSource();
+			EOdeSolver solver = (EOdeSolver) source.getClientProperty(solverKey);
+			this.currentSolver = solver;
+			tasks.add(() -> {
+				system.setSolver(solver.getSolver());
+			});
 		};
-		eulerSolverRadio.addActionListener(solverAction);
-		midPointSolverRadio.addActionListener(solverAction);
-		rungeKuttaSolverRadio.addActionListener(solverAction);
-
-		rungeKuttaSolverRadio.setSelected(true);
-
-		ButtonGroup g = new ButtonGroup();
-		g.add(eulerSolverRadio);
-		g.add(midPointSolverRadio);
-		g.add(rungeKuttaSolverRadio);
-		toolBar.add(eulerSolverRadio);
-		toolBar.add(midPointSolverRadio);
-		toolBar.add(rungeKuttaSolverRadio);
+		for(EOdeSolver solver : solvers){
+			JRadioButton solverRadio = new JRadioButton(solver.displayName);
+			if(solver == this.currentSolver){
+				solverRadio.setSelected(true);
+			}
+			solverRadio.putClientProperty(solverKey, solver);
+			solverRadio.addActionListener(solverListener);
+			solverGroup.add(solverRadio);
+			toolBar.add(solverRadio);
+		}
 
 		toolBar.addSeparator();
 
 		JLabel gravityLabel = new JLabel("Gravity");
-		this.gravitySpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_GRAVITY, MIN_GRAVITY, MAX_GRAVITY, GRAVITY_STEP));
+		this.gravitySpinner = new JSpinner(new SpinnerNumberModel(config.gravity, MIN_GRAVITY, MAX_GRAVITY, GRAVITY_STEP));
 		this.gravitySpinner.addChangeListener(e -> this.gravity.setAcceleration(getGravity()));
 		toolBar.add(gravityLabel);
 		toolBar.add(this.gravitySpinner);
 		toolBar.addSeparator();
 
 		JLabel viscousDragLabel = new JLabel("Viscous drag");
-		this.viscousDragSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_VISCOUS_DRAG, MIN_VISCOUS_DRAG, MAX_VISCOUS_DRAG, VISCOUS_DRAG_STEP));
+		this.viscousDragSpinner = new JSpinner(new SpinnerNumberModel(config.viscousDrag, MIN_VISCOUS_DRAG, MAX_VISCOUS_DRAG, VISCOUS_DRAG_STEP));
 		this.viscousDragSpinner.addChangeListener(e -> this.viscousDrag.setDrag(getViscousDrag()));
 		toolBar.add(viscousDragLabel);
 		toolBar.add(this.viscousDragSpinner);
 
 		JLabel bounceLabel = new JLabel("Bounce");
-		this.bounceKeepSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_BOUNCE_KEEP_PERCENTAGE, MIN_BOUNCE_KEEP_PERCENTAGE, MAX_BOUNCE_KEEP_PERCENTAGE, BOUNCE_KEEP_PERCENTAGE_STEP));
+		this.bounceKeepSpinner = new JSpinner(new SpinnerNumberModel(config.bounce, MIN_BOUNCE_KEEP_PERCENTAGE, MAX_BOUNCE_KEEP_PERCENTAGE, BOUNCE_KEEP_PERCENTAGE_STEP));
 		this.bounceKeepSpinner.addChangeListener(e -> this.system.setBounceKeep(getBounceKeep() / 100));
 		toolBar.add(bounceLabel);
 		toolBar.add(this.bounceKeepSpinner);
@@ -230,6 +239,7 @@ public class App extends JFrame{
 
 		Vector2 worldSize = SCALE.scaleToMeters(this.simulationContent.getSize());
 		system = new ParticleSystem(worldSize, radius);
+		system.setSolver(this.currentSolver.getSolver());
 		this.editor.initializeSystem(system);
 		this.gravity = new GravitationalForce(getGravity());
 		this.viscousDrag = new ViscousDragForce(getViscousDrag());
@@ -263,19 +273,19 @@ public class App extends JFrame{
 
 		JMenuItem load = new JMenuItem("Open");
 		load.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK));
-		load.addActionListener(e -> load());
+		load.addActionListener(e -> load(this.editor));
 		menu.add(load);
 
 		menu.addSeparator();
 
 		JMenuItem save = new JMenuItem("Save...");
 		save.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK));
-		save.addActionListener(e -> save());
+		save.addActionListener(e -> save(this.editor));
 		menu.add(save);
 
 		JMenuItem saveAs = new JMenuItem("Save As...");
 		saveAs.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK));
-		saveAs.addActionListener(e -> selectFileAndSave());
+		saveAs.addActionListener(e -> selectFileAndSave(this.editor));
 		menu.add(saveAs);
 
 		return menu;
@@ -287,15 +297,28 @@ public class App extends JFrame{
 		this.tabbedPane.setSelectedComponent(editor);
 	}
 
-	private void save(){
+	private void saveTempEditorState(Editor editor){
+		File tempEditorState = AppStateManager.getStateFile(TEMP_EDITOR_SAVE);
+		save(tempEditorState);
+	}
+
+	private void loadTempEditorState(Editor editor){
+		File tempEditorState = AppStateManager.getStateFile(TEMP_EDITOR_SAVE);
+		if(!tempEditorState.exists()){
+			return;
+		}
+		load(tempEditorState, editor);
+	}
+
+	private void save(Editor editor){
 		if(currFile.isPresent()){
 			save(currFile.get());
 			return;
 		}
-		selectFileAndSave();
+		selectFileAndSave(editor);
 	}
 
-	private void selectFileAndSave(){
+	private void selectFileAndSave(Editor editor){
 		findFreeFileName();
 		FileDialog dialog = new FileDialog(this, "Save As", FileDialog.SAVE);
 		if(currFile.isPresent()){
@@ -339,7 +362,7 @@ public class App extends JFrame{
         }
     }
 
-	private void load(){
+	private void load(Editor editor){
 		FileDialog dialog = new FileDialog(this, "Load", FileDialog.LOAD);
 		dialog.setFilenameFilter(getFilenameFilter());
 		dialog.setVisible(true);
@@ -347,16 +370,16 @@ public class App extends JFrame{
 			return;
 		}
 		File file = new File(dialog.getDirectory(), dialog.getFile());
-		load(file);
+		load(file, editor);
 
 		this.currFile = Optional.of(file);
 		this.tabbedPane.setSelectedComponent(editor);
 	}
 
-	private void load(File file){
+	private void load(File file, Editor editor){
 		try (FileInputStream is = new FileInputStream(file)){
 			ObjectInputStream ois = new ObjectInputStream(is);
-			this.editor.load(ois);
+			editor.load(ois);
 		} catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
@@ -369,6 +392,49 @@ public class App extends JFrame{
 				return name.endsWith(".psim");
 			}
 		};
+	}
+
+	private void saveConfig(AppConfig config){
+		File configFile = AppStateManager.getStateFile(CONFIG_FILE_NAME);
+		if(!configFile.exists()){
+            try {
+                if(!configFile.createNewFile()){
+					throw new RuntimeException("Unable to create config file");
+				}
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+		try(FileOutputStream fileOutputStream = new FileOutputStream(configFile)){
+			ObjectOutputStream ous = new ObjectOutputStream(fileOutputStream);
+			ous.writeObject(config);
+		}catch(Exception e){
+			throw new RuntimeException(e);
+		}
+	}
+
+	private AppConfig readConfig(){
+		File configFile = AppStateManager.getStateFile(CONFIG_FILE_NAME);
+
+		if(!configFile.exists()){
+			saveConfig(getDefaultConfig());
+			return getDefaultConfig();
+		}
+
+		try(FileInputStream fileInputStream = new FileInputStream(configFile)){
+			ObjectInputStream ous = new ObjectInputStream(fileInputStream);
+			return (AppConfig)ous.readObject();
+		}catch(InvalidClassException e){
+			e.printStackTrace();
+			saveConfig(getDefaultConfig());
+			return getDefaultConfig();
+		} catch (ClassNotFoundException | IOException e) {
+			throw new RuntimeException(e);
+		}
+    }
+
+	private AppConfig getDefaultConfig(){
+		return new AppConfig(EOdeSolver.RungeKutta, DEFAULT_GRAVITY, DEFAULT_BOUNCE_KEEP_PERCENTAGE, DEFAULT_VISCOUS_DRAG, null);
 	}
 
 	private void simulate(){
