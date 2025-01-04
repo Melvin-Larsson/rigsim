@@ -19,6 +19,8 @@ public class BoxTool extends Tool{
     private boolean dialogOpen = false;
     private JToolBar toolbar;
 
+    private ParticleToolComponent particleToolComponent;
+
     public BoxTool(Editor editor) {
         super(editor);
         this.ghostParticles = new ArrayList<>();
@@ -32,6 +34,10 @@ public class BoxTool extends Tool{
     private JToolBar createToolbar(){
         JToolBar toolBar = new JToolBar();
         toolBar.setLayout(new FlowLayout(FlowLayout.LEADING, 5, 5));
+
+        this.particleToolComponent = new ParticleToolComponent();
+        toolBar.add(this.particleToolComponent);
+        toolBar.addSeparator();
 
 
         JSpinner widthSpinner = new JSpinner(new SpinnerNumberModel(width, 1, 100, 1));
@@ -90,7 +96,7 @@ public class BoxTool extends Tool{
     }
 
     private void addParticles(Vector2 topLeft, int width, int height, float spacing){
-        editor.addMultipleParticles(getParticles(topLeft, width, height, spacing).stream().map(v -> super.editor.createEditorParticle(v)).toList());
+        editor.addMultipleParticles(getParticles(topLeft, width, height, spacing).stream().map(v ->particleToolComponent.createParticle(v)).toList());
         editor.getEditorPanel().repaint();
     }
 

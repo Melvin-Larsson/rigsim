@@ -2,6 +2,7 @@ package org.example.editor;
 
 import org.example.Vector2;
 
+import javax.management.MBeanParameterInfo;
 import javax.swing.*;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 
 public class CircleTool extends Tool{
     private JToolBar toolbar;
+    private ParticleToolComponent particleToolComponent;
 
     private java.util.List<Vector2> ghostParticles;
     private Vector2 ghostCenter = new Vector2(0,0);
@@ -58,6 +60,9 @@ public class CircleTool extends Tool{
         JToolBar toolBar = new JToolBar();
         toolBar.setLayout(new FlowLayout(FlowLayout.LEADING, 5, 5));
 
+        this.particleToolComponent = new ParticleToolComponent();
+        toolBar.add(particleToolComponent);
+
         JSpinner radiusSpinner = new JSpinner(new SpinnerNumberModel(radius, 1, 1000, 1));
         JSpinner countSpinner = new JSpinner(new SpinnerNumberModel(count, 2, 100, 1));
 
@@ -87,7 +92,7 @@ public class CircleTool extends Tool{
     }
 
     private void addParticles(Vector2 center, float radius, int count){
-        editor.addMultipleParticles(getParticles(center, radius, count).stream().map(v -> super.editor.createEditorParticle(v)).toList());
+        editor.addMultipleParticles(getParticles(center, radius, count).stream().map(v -> this.particleToolComponent.createParticle(v)).toList());
         editor.getEditorPanel().repaint();
     }
 

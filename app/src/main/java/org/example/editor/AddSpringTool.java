@@ -54,30 +54,46 @@ public class AddSpringTool extends Tool{
         toolBar.setLayout(new FlowLayout(FlowLayout.LEADING, 5, 5));
 
         dampingConstantSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_DAMPING_CONSTANT, 0, Editor.MAX_DAMPING_CONSTANT, 1));
-        toolBar.add(new JLabel("Damping constant"));
-        toolBar.add(dampingConstantSpinner);
-
+        JLabel dampingConstantLabel = new JLabel("Damping");
         springConstantSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_SPRING_CONSTANT, 0, Editor.MAX_SPRING_CONSTANT, 1));
-        toolBar.add(new JLabel("Spring constant"));
-        toolBar.add(springConstantSpinner);
+        JLabel springConstantLabel = new JLabel("Spring constant");
 
         this.stiffCheckbox = new JCheckBox("Stiff");
+        this.stiffCheckbox.addActionListener(e -> {
+            boolean enabled = !this.stiffCheckbox.isSelected();
+
+            dampingConstantSpinner.setEnabled(enabled);
+            dampingConstantLabel.setEnabled(enabled);
+
+            springConstantSpinner.setEnabled(enabled);
+            springConstantLabel.setEnabled(enabled);
+
+        });
         toolBar.add(stiffCheckbox);
 
         toolBar.addSeparator();
 
+        toolBar.add(dampingConstantLabel);
+        toolBar.add(dampingConstantSpinner);
+
+        toolBar.add(springConstantLabel);
+        toolBar.add(springConstantSpinner);
+
+        toolBar.addSeparator();
+
         JLabel connectRadiusLabel = new JLabel("Radius");
-        connectRadiusLabel.setVisible(false);
+        connectRadiusLabel.setEnabled(false);
         this.connectionRadiusSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 10000, 1));
+        this.connectionRadiusSpinner.setEnabled(false);
         this.connectionRadiusSpinner.addChangeListener(e -> {
             super.editor.getEditorPanel().repaint();
         });
-        connectionRadiusSpinner.setVisible(false);
 
         this.connectNearbyCheckBox = new JCheckBox("Connect nearby");
         this.connectNearbyCheckBox.addActionListener(e -> {
-            connectionRadiusSpinner.setVisible(this.connectNearbyCheckBox.isSelected());
-            connectRadiusLabel.setVisible(this.connectNearbyCheckBox.isSelected());
+            boolean enabled = this.connectNearbyCheckBox.isSelected();
+            connectionRadiusSpinner.setEnabled(enabled);
+            connectRadiusLabel.setEnabled(enabled);
             toolBar.repaint();
             super.editor.getEditorPanel().repaint();
         });
@@ -85,6 +101,8 @@ public class AddSpringTool extends Tool{
 
         toolBar.add(connectRadiusLabel);
         toolBar.add(connectionRadiusSpinner);
+
+        toolBar.addSeparator();
 
         JButton connectAll = new JButton("Connect all");
         connectAll.addActionListener(new ActionListener() {

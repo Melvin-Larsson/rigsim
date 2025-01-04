@@ -175,7 +175,7 @@ public class Editor extends JPanel {
     }
 
     EditorParticle createEditorParticle(Vector2 position){
-        return new EditorParticle(position);
+        return EditorParticle.createMoveable(position);
     }
 
     public void initializeSystem(ParticleSystem system){
@@ -183,23 +183,20 @@ public class Editor extends JPanel {
         Map<EditorParticle, Integer> mapping = new HashMap<>();
         for (EditorParticle particle : this.particles){
             mapping.put(particle, particles.size());
-            particles.add(new Particle(scale.scaleToMeters(particle.getPosition()), particleMass));
+            particles.add(new Particle(scale.scaleToMeters(particle.getPosition()), particle.getMass()));
         }
         List<SimulationParticle> simulationParticles = ParticleFactory.createSimulationParticles(particles);
         system.addAllParticles(simulationParticles);
 
+        for (EditorParticle particle : this.particles){
+            if(!particle.isMoveable()){
+                int index = mapping.get(particle);
+                system.addConstraints(new ImmovableConstraint(simulationParticles.get(index)));
+            }
+        }
+
 //        for (int i = 0; i < Math.min(simulationParticles.size(), 2); i++){
 //            system.addConstraints(new ImmovableConstraint(simulationParticles.get(i)));
-//        }
-
-//        for(int i = 0; i < simulationParticles.size(); i++){
-//            SimulationParticle p1 = simulationParticles.get(i);
-//            for(int j = i + 1; j < simulationParticles.size(); j++){
-//                SimulationParticle p2 = simulationParticles.get(j);
-//                Vector2 diff = p2.getPosition().sub(p1.getPosition());
-//
-//                system.addConstraints(new DistanceConstraint(p1, p2, diff.length()));
-//            }
 //        }
 
         for (EditorSpring editorSpring : editorSprings){
@@ -313,11 +310,16 @@ public class Editor extends JPanel {
             currentTool.paintBack(g);
         }
 
-        g.setColor(Color.BLACK);
         for (EditorParticle particle : particles){
+            if(particle.isMoveable()){
+                g.setColor(Color.GRAY);
+            }else{
+                g.setColor(Color.BLACK);
+            }
             drawParticle(particle, g);
         }
 
+        g.setColor(Color.BLACK);
         for(EditorSpring editorSpring : editorSprings){
             g.setColor(getSpringColor(editorSpring));
             drawConnection(editorSpring, g);
