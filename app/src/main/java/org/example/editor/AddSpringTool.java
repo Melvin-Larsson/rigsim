@@ -10,9 +10,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
 
 public class AddSpringTool extends Tool{
     private EditorParticle startParticle;
@@ -21,6 +19,7 @@ public class AddSpringTool extends Tool{
 
     private JSpinner dampingConstantSpinner;
     private JSpinner springConstantSpinner;
+    private JCheckBox stiffCheckbox;
 
     private JSpinner connectionRadiusSpinner;
     private JCheckBox connectNearbyCheckBox;
@@ -61,6 +60,9 @@ public class AddSpringTool extends Tool{
         springConstantSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_SPRING_CONSTANT, 0, Editor.MAX_SPRING_CONSTANT, 1));
         toolBar.add(new JLabel("Spring constant"));
         toolBar.add(springConstantSpinner);
+
+        this.stiffCheckbox = new JCheckBox("Stiff");
+        toolBar.add(stiffCheckbox);
 
         toolBar.addSeparator();
 
@@ -105,10 +107,19 @@ public class AddSpringTool extends Tool{
         }
 
         for(Pair<EditorParticle, EditorParticle> pair : toConnect){
-            super.editor.addConnection(new EditorSpring(pair.v1, pair.v2, getSpringConstant(), getDampingConstant()));
+            addConnection(pair.v1, pair.v2);
         }
 
         super.editor.getEditorPanel().repaint();
+    }
+
+    private void addConnection(EditorParticle p1, EditorParticle p2){
+        if(stiffCheckbox.isSelected()){
+            super.editor.addConnection(new EditorSpring(p1, p2));
+        }
+        else{
+            super.editor.addConnection(new EditorSpring(p1, p2, getSpringConstant(), getDampingConstant()));
+        }
     }
 
 
@@ -156,7 +167,7 @@ public class AddSpringTool extends Tool{
                 return;
             }
 
-            super.editor.addConnection(new EditorSpring(startParticle, particles.getFirst(), getSpringConstant(), getDampingConstant()));
+            addConnection(startParticle, particles.getFirst());
         }finally{
             startParticle = null;
             mousePosition = null;

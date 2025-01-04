@@ -30,6 +30,10 @@ public class Particle{
         this.forces.add(force);
     }
 
+    Vector2 getForceSum(){
+        return this.forces.stream().reduce(new Vector2(0,0), Vector2::add);
+    }
+
     void clearForces() {
         this.forces.clear();
     }

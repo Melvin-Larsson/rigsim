@@ -188,13 +188,30 @@ public class Editor extends JPanel {
         List<SimulationParticle> simulationParticles = ParticleFactory.createSimulationParticles(particles);
         system.addAllParticles(simulationParticles);
 
+//        for (int i = 0; i < Math.min(simulationParticles.size(), 2); i++){
+//            system.addConstraints(new ImmovableConstraint(simulationParticles.get(i)));
+//        }
+
+//        for(int i = 0; i < simulationParticles.size(); i++){
+//            SimulationParticle p1 = simulationParticles.get(i);
+//            for(int j = i + 1; j < simulationParticles.size(); j++){
+//                SimulationParticle p2 = simulationParticles.get(j);
+//                Vector2 diff = p2.getPosition().sub(p1.getPosition());
+//
+//                system.addConstraints(new DistanceConstraint(p1, p2, diff.length()));
+//            }
+//        }
+
         for (EditorSpring editorSpring : editorSprings){
             SimulationParticle p1 = simulationParticles.get(mapping.get(editorSpring.p1));
             SimulationParticle p2 = simulationParticles.get(mapping.get(editorSpring.p2));
             Vector2 diff = p2.getPosition().sub(p1.getPosition());
-            System.out.println("Spring " + editorSpring.springConstant);
-            SpringForce force = new SpringForce(p1, p2, diff.length(), editorSpring.springConstant, editorSpring.dampingConstant);
-            system.addForce(force);
+            if(editorSpring.isStiff){
+                system.addConstraints(new DistanceConstraint(p1, p2, diff.length()));
+            }else{
+                SpringForce force = new SpringForce(p1, p2, diff.length(), editorSpring.springConstant, editorSpring.dampingConstant);
+                system.addForce(force);
+            }
         }
     }
 
@@ -316,6 +333,10 @@ public class Editor extends JPanel {
     }
 
     private Color getSpringColor(EditorSpring spring){
+        if(spring.isStiff){
+            return Color.RED;
+        }
+
         float springConstant = Math.min(spring.springConstant, MAX_SPRING_CONSTANT);
         int rg = (int)((255.0 / Math.log10(MAX_SPRING_CONSTANT)) * Math.log10(springConstant));
 
