@@ -22,6 +22,14 @@ public class ParticleSystem {
 
     private float bounceKeep = DEFAULT_BOUNCE_KEEP;
 
+    private DiagonalMatrix W;
+    private RealVector C;
+    private RealMatrix jacobian;
+    private RealMatrix jacobianDerivative;
+    private RealVector dq;
+    private RealVector Q;
+    private boolean matrixesInitialized = false;
+
     private Vector2 size;
     private float particleRadius;
     float kd = 100;
@@ -47,6 +55,7 @@ public class ParticleSystem {
     public void addAllParticles(Collection<SimulationParticle> particles){
         this.particles.addAll(particles.stream().map(p -> p.getParticle()).toList());
         this.simulationParticles.addAll(particles);
+        this.matrixesInitialized = false;
     }
 
     public ImmutableList<SimulationParticle> getParticles(){
@@ -70,6 +79,25 @@ public class ParticleSystem {
         this.constraints.add(constraint);
     }
 
+
+    private void initMatrices(){
+        W = new DiagonalMatrix(this.particles.size() * 2);
+        C = new ArrayRealVector(this.constraints.size());
+        jacobian = new OpenMapRealMatrix(this.constraints.size(), this.particles.size() * 2);
+        jacobianDerivative = new OpenMapRealMatrix(this.constraints.size(), this.particles.size() * 2);
+        dq = new ArrayRealVector(this.particles.size() * 2);
+        Q = new ArrayRealVector(this.particles.size() * 2);
+
+        int i = 0;
+        for(Particle p : this.particles) {
+            W.setEntry(i * 2, i * 2, 1/p.getMass());
+            W.setEntry(i * 2 + 1, i * 2 + 1, 1/p.getMass());
+            i++;
+        }
+
+        this.matrixesInitialized = true;
+    }
+
     public void step(float time){
         for (Particle particle : particles){
             particle.clearForces();
@@ -79,30 +107,22 @@ public class ParticleSystem {
             force.apply(particles);
         }
 
+        if(!matrixesInitialized){
+            initMatrices();
+        }
+
         if(!this.constraints.isEmpty()){
-            RealMatrix mass = new Array2DRowRealMatrix(this.particles.size() * 2, this.particles.size() * 2);
-            RealMatrix dq = new Array2DRowRealMatrix(this.particles.size() * 2, 1);
-            RealMatrix Q = new Array2DRowRealMatrix(this.particles.size() * 2, 1);
             int i = 0;
             for(Particle p : this.particles){
-                mass.setEntry(i * 2, i * 2, p.getMass());
-                mass.setEntry(i * 2 + 1, i * 2 + 1, p.getMass());
-
-                dq.setEntry(i * 2, 0, p.getVelocity().getX());
-                dq.setEntry(i * 2 + 1, 0, p.getVelocity().getY());
+                dq.setEntry(i * 2, p.getVelocity().getX());
+                dq.setEntry(i * 2 + 1, p.getVelocity().getY());
 
                 Vector2 resultingForce = p.getForceSum();
-                Q.setEntry(i * 2, 0, resultingForce.getX());
-                Q.setEntry(i * 2 + 1, 0, resultingForce.getY());
+                Q.setEntry(i * 2, resultingForce.getX());
+                Q.setEntry(i * 2 + 1, resultingForce.getY());
 
                 i++;
             }
-            LUDecomposition luDecomposition = new LUDecomposition(mass);
-            RealMatrix W = luDecomposition.getSolver().getInverse();
-
-            RealMatrix C = new Array2DRowRealMatrix(this.constraints.size(), 1);
-            RealMatrix jacobian = new OpenMapRealMatrix(this.constraints.size(), this.particles.size() * 2);
-            RealMatrix jacobianDerivative = new OpenMapRealMatrix(this.constraints.size(), this.particles.size() * 2);
 
             i = 0;
             for(Constraint constraint : this.constraints){
@@ -113,11 +133,14 @@ public class ParticleSystem {
                 i++;
             }
 
-            RealMatrix dC = jacobian.multiply(dq);
-            RealMatrix right = jacobianDerivative.multiply(dq).scalarMultiply(-1).subtract(jacobian.multiply(W).multiply(Q)).subtract(C.scalarMultiply(ks)).subtract(dC.scalarMultiply(kd));
+            RealVector dC = jacobian.operate(dq);
+            RealVector right = jacobianDerivative.operate(dq).mapMultiply(-1)
+                    .subtract(jacobian.operate(W.operate(Q)))
+                    .subtract(C.mapMultiply(ks))
+                    .subtract(dC.mapMultiply(kd));
 
-            RealVector solution = solve2(jacobian, W, right.getColumnVector(0));
-            RealVector forces = jacobian.transpose().operate(solution);
+            RealVector solution = solve2(jacobian, W, right);
+            RealVector forces = multTranspose(jacobian, solution);
 
             i = 0;
             for (Particle p: particles){
@@ -146,17 +169,31 @@ public class ParticleSystem {
         }
     }
 
-    private RealVector solve2(RealMatrix J, RealMatrix W, RealVector B){
+    private RealVector multTranspose(RealMatrix J, RealVector x){
+        int numRows = J.getRowDimension();  // m
+        int numCols = J.getColumnDimension();  // n
+        RealVector JT_x = new ArrayRealVector(numCols);  // Result vector (size n)
+
+        OpenMapRealMatrix om;
+        // Compute J^T * x without forming J^T
+        for (int col = 0; col < numCols; col++) {
+            double dotProduct = 0.0;
+            for (int row = 0; row < numRows; row++) {
+                dotProduct += J.getEntry(row, col) * x.getEntry(row);
+            }
+            JT_x.setEntry(col, dotProduct);
+        }
+
+        return JT_x;
+    }
+
+    private RealVector solve2(RealMatrix J, DiagonalMatrix W, RealVector B){
         RealLinearOperator operator = new RealLinearOperator() {
             @Override
             public RealVector operate(RealVector x) {
-                // Step 1: Compute J^T x
-                RealVector JT_x = J.transpose().operate(x);
+                RealVector JT_x = multTranspose(J, x);
 
-                // Step 2: Multiply by diagonal M (extract diagonal and multiply element-wise)
                 RealVector M_JT_x = W.operate(JT_x);
-
-                // Step 3: Compute J (M J^T x)
                 RealVector result =  J.operate(M_JT_x);
 
                 double lambda = 1e-6;
@@ -176,7 +213,7 @@ public class ParticleSystem {
 
         // Solve using Conjugate Gradient
         try{
-            ConjugateGradient cg = new ConjugateGradient(1000, 1e-10, true);
+            ConjugateGradient cg = new ConjugateGradient(10, 1e-5, false);
             return cg.solve(operator, B);
         }catch(Exception e){
             return new ArrayRealVector(B.getDimension());

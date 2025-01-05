@@ -1,6 +1,7 @@
 package org.example.simulation;
 
 import org.apache.commons.math3.linear.RealMatrix;
+import org.apache.commons.math3.linear.RealVector;
 import org.example.Vector2;
 
 import java.util.List;
@@ -22,10 +23,10 @@ public class DistanceConstraint implements Constraint {
     }
 
     @Override
-    public void insertConstraint(List<Particle> particles, RealMatrix constraint, int row, ParticleSystem system) {
+    public void insertConstraint(List<Particle> particles, RealVector constraint, int row, ParticleSystem system) {
 //        constraint.set(row, 0, particle.getPosition().distance(this.position));
         Vector2 diff = this.p2.getPosition().sub(this.p1.getPosition());
-        constraint.setEntry(row, 0, (diff.dot(diff) - this.distance * this.distance) / 2);
+        constraint.setEntry(row, (diff.dot(diff) - this.distance * this.distance) / 2);
     }
 
     @Override

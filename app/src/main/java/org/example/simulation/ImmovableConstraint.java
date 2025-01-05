@@ -1,6 +1,7 @@
 package org.example.simulation;
 
 import org.apache.commons.math3.linear.RealMatrix;
+import org.apache.commons.math3.linear.RealVector;
 
 import java.util.List;
 
@@ -17,7 +18,7 @@ public class ImmovableConstraint implements Constraint{
     }
 
     @Override
-    public void insertConstraint(List<Particle> particles, RealMatrix constraint, int row, ParticleSystem system) {
+    public void insertConstraint(List<Particle> particles, RealVector constraint, int row, ParticleSystem system) {
 
     }
 
