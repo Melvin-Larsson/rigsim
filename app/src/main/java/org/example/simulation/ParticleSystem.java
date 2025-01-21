@@ -81,6 +81,9 @@ public class ParticleSystem {
 
 
     private void initMatrices(){
+        if(this.constraints.isEmpty()){
+            return;
+        }
         W = new DiagonalMatrix(this.particles.size() * 2);
         C = new ArrayRealVector(this.constraints.size());
         jacobian = new OpenMapRealMatrix(this.constraints.size(), this.particles.size() * 2);
